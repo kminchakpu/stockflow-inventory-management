@@ -63,18 +63,17 @@ Additional documentation, installation instructions, and user guides will be mai
 In Development – CSE 325 Group Project.
 
 ## Rules for team collaboration
-
-Before anyone starts coding, remember these rules:
-Activity	                    Team rule
+## Before anyone starts coding, remember these rules:
+## Activity	                    Team rule
 ==========================================
-Starting work	                Pull the latest develop branch
-New feature	                    Create a feature branch
-Saving changes	                Commit regularly
-Commit messages	                Describe the actual change
-Submitting work	                Create a Pull Request
-Code review	                    Another member reviews the changes
-Merging	                        Merge approved work into develop
-Final release	                Merge tested code into main
+1. Starting work	                Pull the latest develop branch
+2. New feature	                  Create a feature branch
+3. Saving changes	                Commit regularly
+4. Commit messages	              Describe the actual change
+5. Submitting work	              Create a Pull Request
+6. Code review	                  Another member reviews the changes
+7. Merging	                      Merge approved work into develop
+8. Final release	                Merge tested code into main
 
 ## Example Git commands:
 
