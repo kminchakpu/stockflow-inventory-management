@@ -61,3 +61,34 @@ Additional documentation, installation instructions, and user guides will be mai
 
 ## Project Status
 In Development – CSE 325 Group Project.
+
+## Rules for team collaboration
+
+Before anyone starts coding, remember these rules:
+Activity	                    Team rule
+==========================================
+Starting work	                Pull the latest develop branch
+New feature	                    Create a feature branch
+Saving changes	                Commit regularly
+Commit messages	                Describe the actual change
+Submitting work	                Create a Pull Request
+Code review	                    Another member reviews the changes
+Merging	                        Merge approved work into develop
+Final release	                Merge tested code into main
+
+## Example Git commands:
+
+## Get the latest changes
+git pull origin develop
+
+## Create a feature branch
+git checkout -b feature/products
+
+## Stage your changes
+git add .
+
+## Commit your changes
+git commit -m "Add product management functionality"
+
+## Push your branch
+git push -u origin feature/products

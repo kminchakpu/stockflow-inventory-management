@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "4BvmQHjqCvs=",
+  "dgSpecHash": "8BfGtYjEjXM=",
   "success": true,
-  "projectFilePath": "C:\\Users\\KEVINOMICS\\Desktop\\2026BLOCK6\\stockflow-inventory-management\\StockFlow\\StockFlow.csproj",
+  "projectFilePath": "C:\\Users\\KEVINOMICS\\Desktop\\2026BLOCK6\\stockflow-inventory-management\\StockFlow.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\KEVINOMICS\\.nuget\\packages\\microsoft.aspnetcore.app.internal.assets\\10.0.14\\microsoft.aspnetcore.app.internal.assets.10.0.14.nupkg.sha512"
   ],

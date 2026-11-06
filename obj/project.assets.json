@@ -50,11 +50,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\KEVINOMICS\\Desktop\\2026BLOCK6\\stockflow-inventory-management\\StockFlow\\StockFlow.csproj",
+      "projectUniqueName": "C:\\Users\\KEVINOMICS\\Desktop\\2026BLOCK6\\stockflow-inventory-management\\StockFlow.csproj",
       "projectName": "StockFlow",
-      "projectPath": "C:\\Users\\KEVINOMICS\\Desktop\\2026BLOCK6\\stockflow-inventory-management\\StockFlow\\StockFlow.csproj",
+      "projectPath": "C:\\Users\\KEVINOMICS\\Desktop\\2026BLOCK6\\stockflow-inventory-management\\StockFlow.csproj",
       "packagesPath": "C:\\Users\\KEVINOMICS\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\KEVINOMICS\\Desktop\\2026BLOCK6\\stockflow-inventory-management\\StockFlow\\obj\\",
+      "outputPath": "C:\\Users\\KEVINOMICS\\Desktop\\2026BLOCK6\\stockflow-inventory-management\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\KEVINOMICS\\AppData\\Roaming\\NuGet\\NuGet.Config"
