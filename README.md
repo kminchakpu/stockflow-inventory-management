@@ -1,5 +1,11 @@
 # StockFlow – Inventory and Sales Management System
 
+## Team Members
+1. Kevin Cross Minchakpu
+2. Derick Shanana
+3. Essodong Guillaume NGnama
+4. Enoh Uwem Akpan
+
 ## CSE 325 Group Project
 StockFlow is a web-based Inventory and Sales Management System designed for small retail businesses.
 The application provides a centralized platform for managing products, product categories, inventory, customers, employees, and sales transactions.
