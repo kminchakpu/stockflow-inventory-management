@@ -50,8 +50,8 @@ The application provides a centralized platform for managing products, product c
 Additional documentation, installation instructions, and user guides will be maintained in this repository.
 
 ## Team Collaboration
-GitHub will be used for source-code management, branches, commits, and pull requests.
-Trello will be used to organize development tasks and monitor project progress.
+1. GitHub will be used for source-code management, branches, commits, and pull requests.
+2. Trello will be used to organize development tasks and monitor project progress.
 
 ## Project Status
 In Development – CSE 325 Group Project.
