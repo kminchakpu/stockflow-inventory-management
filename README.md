@@ -66,14 +66,14 @@ In Development – CSE 325 Group Project.
 ## Before anyone starts coding, remember these rules:
 ## Activity	                    Team rule
 ==========================================
-1. Starting work	                :Pull the latest develop branch
-2. New feature	                  :Create a feature branch
-3. Saving changes	                :Commit regularly
-4. Commit messages	              :Describe the actual change
-5. Submitting work	              :Create a Pull Request
-6. Code review	                  :Another member reviews the changes
-7. Merging	                      :Merge approved work into develop
-8. Final release	                :Merge tested code into main
+1. Starting work	                : Pull the latest develop branch
+2. New feature	                  : Create a feature branch
+3. Saving changes	                : Commit regularly
+4. Commit messages	              : Describe the actual change
+5. Submitting work	              : Create a Pull Request
+6. Code review	                  : Another member reviews the changes
+7. Merging	                      : Merge approved work into develop
+8. Final release	                : Merge tested code into main
 
 ## Example Git commands:
 
