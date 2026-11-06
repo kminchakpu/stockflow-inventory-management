@@ -43,8 +43,8 @@ The application provides a centralized platform for managing products, product c
 - Basic reporting
 
 ## User Roles
-Admin: Manages products, categories, inventory, employees, customers, sales, and reports.
-Employee: Views products and inventory, manages customer information, and processes sales.
+1. Admin: Manages products, categories, inventory, employees, customers, sales, and reports.
+2. Employee: Views products and inventory, manages customer information, and processes sales.
 
 ## Project Documentation
 Additional documentation, installation instructions, and user guides will be maintained in this repository.
