@@ -96,3 +96,15 @@ main {
         right: 0.75rem;
         top: 0.5rem;
     }
+
+
+
+.app-shell {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+.main-content {
+    flex: 1;
+    width: 100%;
+}
