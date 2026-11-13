@@ -1,7 +1,234 @@
-﻿@page "/"
-
-<PageTitle>Home</PageTitle>
-
-<h1>Hello, world!</h1>
-
-Welcome to your new app.
+﻿
+@page "/"
+<PageTitle>StockFlow | Inventory and Sales Management</PageTitle>
+<main class="home-page">
+    <section class="hero-section">
+        <div class="hero-container">
+            <div class="hero-content">
+                <div class="hero-label">
+                    <span class="hero-label-dot"></span>
+                    INVENTORY AND SALES MANAGEMENT
+                </div>
+                <h1>Take control of your inventory. <span>Grow your business.</span></h1>
+                <p class="hero-description">
+                    Manage products, monitor stock, organize customers and process sales
+                    from one simple workspace. StockFlow helps your retail business stay organized.
+                </p>
+                <div class="hero-actions">
+                    <a href="/Account/Login" class="primary-button">Get started <span aria-hidden="true">→</span></a>
+                    <a href="#features" class="secondary-button">Explore features</a>
+                </div>
+                <div class="hero-trust">
+                    <span class="trust-check" aria-hidden="true">✓</span>
+                    <span>Designed for small retail businesses</span>
+                </div>
+            </div>
+            <div class="hero-visual" aria-label="Illustrative StockFlow dashboard preview">
+                <div class="dashboard-window">
+                    <div class="dashboard-topbar">
+                        <div class="dashboard-brand">
+                            <span class="mini-brand-mark">S</span>
+                            <strong>StockFlow</strong>
+                        </div>
+                        <span class="preview-label">Dashboard preview</span>
+                    </div>
+                    <div class="dashboard-body">
+                        <div class="dashboard-heading">
+                            <div>
+                                <span class="dashboard-eyebrow">OVERVIEW</span>
+                                <h2>Business summary</h2>
+                            </div>
+                            <span class="dashboard-date">Today</span>
+                        </div>
+                        <div class="summary-grid">
+                            <div class="summary-card">
+                                <span class="summary-icon products-icon">▦</span>
+                                <span class="summary-label">Products</span>
+                                <strong>--</strong>
+                                <small>Product records</small>
+                            </div>
+                            <div class="summary-card">
+                                <span class="summary-icon stock-icon">◫</span>
+                                <span class="summary-label">Stock status</span>
+                                <strong>--</strong>
+                                <small>Inventory overview</small>
+                            </div>
+                            <div class="summary-card">
+                                <span class="summary-icon sales-icon">↗</span>
+                                <span class="summary-label">Sales</span>
+                                <strong>--</strong>
+                                <small>Sales activity</small>
+                            </div>
+                        </div>
+                        <div class="dashboard-lower">
+                            <div class="preview-panel">
+                                <div class="panel-heading">
+                                    <strong>Inventory overview</strong>
+                                    <span>Illustration</span>
+                                </div>
+                                <div class="chart-bars" aria-hidden="true">
+                                    <span style="--bar-height:45%"></span>
+                                    <span style="--bar-height:72%"></span>
+                                    <span style="--bar-height:55%"></span>
+                                    <span style="--bar-height:88%"></span>
+                                    <span style="--bar-height:65%"></span>
+                                    <span style="--bar-height:78%"></span>
+                                    <span style="--bar-height:50%"></span>
+                                </div>
+                                <div class="chart-labels">
+                                    <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+                                </div>
+                            </div>
+                            <div class="preview-panel stock-panel">
+                                <strong>Stock monitoring</strong>
+                                <div class="stock-indicator">
+                                    <span class="stock-dot green-dot"></span>
+                                    <span>Available stock</span>
+                                </div>
+                                <div class="stock-indicator">
+                                    <span class="stock-dot orange-dot"></span>
+                                    <span>Low stock alerts</span>
+                                </div>
+                                <p>Monitor quantities and identify products that need restocking.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="dashboard-caption">A visual preview — figures are placeholders, not live business data.</div>
+                </div>
+                <div class="floating-note">
+                    <span class="floating-note-icon">✓</span>
+                    <span><strong>Stay organized</strong><small>Products, stock and sales</small></span>
+                </div>
+            </div>
+        </div>
+    </section>
+    <section class="benefit-strip">
+        <div class="benefit-container">
+            <div><span class="benefit-symbol">▦</span><span>Organized product records</span></div>
+            <div><span class="benefit-symbol">◫</span><span>Inventory visibility</span></div>
+            <div><span class="benefit-symbol">↗</span><span>Connected sales processing</span></div>
+            <div><span class="benefit-symbol">✓</span><span>Role-based access</span></div>
+        </div>
+    </section>
+    <section class="features-section" id="features">
+        <div class="section-container">
+            <div class="section-heading">
+                <span class="section-eyebrow">WHAT STOCKFLOW OFFERS</span>
+                <h2>Everything your daily operations need</h2>
+                <p>Bring essential retail activities together in one straightforward application.</p>
+            </div>
+            <div class="features-grid">
+                <article class="feature-card">
+                    <div class="feature-icon green-icon">▦</div>
+                    <h3>Product Management</h3>
+                    <p>Create, view, update and manage product records and their categories in one place.</p>
+                </article>
+                <article class="feature-card">
+                    <div class="feature-icon blue-icon">◫</div>
+                    <h3>Inventory Management</h3>
+                    <p>Monitor available quantities, adjust stock and identify products that need restocking.</p>
+                </article>
+                <article class="feature-card">
+                    <div class="feature-icon purple-icon">♙</div>
+                    <h3>Customer Management</h3>
+                    <p>Keep customer information organized and accessible to authorized users.</p>
+                </article>
+                <article class="feature-card">
+                    <div class="feature-icon orange-icon">↗</div>
+                    <h3>Sales Processing</h3>
+                    <p>Record sales and validate requested quantities against available inventory.</p>
+                </article>
+                <article class="feature-card">
+                    <div class="feature-icon teal-icon">◷</div>
+                    <h3>Sales History</h3>
+                    <p>Review completed transactions and access the details of individual sales.</p>
+                </article>
+                <article class="feature-card">
+                    <div class="feature-icon red-icon">♧</div>
+                    <h3>Employee Management</h3>
+                    <p>Allow administrators to manage employee accounts and application access.</p>
+                </article>
+            </div>
+        </div>
+    </section>
+    <section class="workflow-section" id="how-it-works">
+        <div class="section-container workflow-container">
+            <div class="workflow-intro">
+                <span class="section-eyebrow">A SIMPLE WORKFLOW</span>
+                <h2>From inventory to completed sale</h2>
+                <p>StockFlow connects sales activity with inventory records to help keep your business information accurate.</p>
+                <a href="/Account/Login" class="workflow-link">Access StockFlow <span aria-hidden="true">→</span></a>
+            </div>
+            <div class="workflow-steps">
+                <article class="workflow-step">
+                    <span class="step-number">01</span>
+                    <div>
+                        <h3>Manage your products</h3>
+                        <p>Administrators maintain product information, categories and stock quantities.</p>
+                    </div>
+                </article>
+                <article class="workflow-step">
+                    <span class="step-number">02</span>
+                    <div>
+                        <h3>Process a customer sale</h3>
+                        <p>Authorized users select products and enter the quantities requested by customers.</p>
+                    </div>
+                </article>
+                <article class="workflow-step">
+                    <span class="step-number">03</span>
+                    <div>
+                        <h3>Inventory updates automatically</h3>
+                        <p>After a valid sale is completed, StockFlow reduces the available quantities and stores the transaction.</p>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </section>
+    <section class="roles-section" id="about">
+        <div class="section-container">
+            <div class="section-heading">
+                <span class="section-eyebrow">BUILT FOR YOUR TEAM</span>
+                <h2>The right access for every role</h2>
+                <p>StockFlow supports two primary user roles with different responsibilities.</p>
+            </div>
+            <div class="roles-grid">
+                <article class="role-card admin-role">
+                    <div class="role-icon">A</div>
+                    <div>
+                        <h3>Administrator</h3>
+                        <p>Manage the business's essential records and oversee operations.</p>
+                        <ul>
+                            <li>Manage products and categories</li>
+                            <li>Manage inventory and stock adjustments</li>
+                            <li>Manage employees and customers</li>
+                            <li>Review sales and reports</li>
+                        </ul>
+                    </div>
+                </article>
+                <article class="role-card employee-role">
+                    <div class="role-icon">E</div>
+                    <div>
+                        <h3>Employee</h3>
+                        <p>Access the tools needed for everyday customer service and sales.</p>
+                        <ul>
+                            <li>View products and stock availability</li>
+                            <li>Manage customer information</li>
+                            <li>Process customer sales</li>
+                            <li>Review sales history and details</li>
+                        </ul>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </section>
+    <section class="cta-section">
+        <div class="cta-container">
+            <div>
+                <span class="cta-eyebrow">MAKE YOUR OPERATIONS SIMPLER</span>
+                <h2>Bring your inventory and sales together.</h2>
+                <p>Get started with a more organized way to manage your retail business.</p>
+            </div>
+            <a href="/Account/Login" class="cta-button">Sign in to StockFlow <span aria-hidden="true">→</span></a>
+        </div>
+    </section>
+</main>
