@@ -1,0 +1,133 @@
+@page "/admin/employees"
+@attribute [Authorize(Policy = StockFlowAuthorization.AdminPolicy)]
+@inject EmployeeAccountService EmployeeAccounts
+
+<PageTitle>StockFlow | Employees</PageTitle>
+
+<div class="dashboard-page">
+    <div class="page-intro">
+        <div>
+            <span class="eyebrow">Admin access</span>
+            <h1>Employee accounts</h1>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(NoticeMessage))
+    {
+        <div class="alert-danger" style="@(IsSuccess ? "background:#e8f6ee;color:#146c43;border-color:#b7e4c7;" : null)">@NoticeMessage</div>
+    }
+
+    <section class="panel">
+        <div class="panel-header">
+            <h3>Create employee</h3>
+        </div>
+        <form method="post" action="/admin/employees">
+            <AntiforgeryToken />
+            <div class="form-field">
+                <label for="new-name">Name</label>
+                <input id="new-name" name="displayName" class="form-control" required />
+            </div>
+            <div class="form-field">
+                <label for="new-email">Email</label>
+                <input id="new-email" name="email" type="email" class="form-control" required />
+            </div>
+            <div class="form-field">
+                <label for="new-password">Temporary password</label>
+                <input id="new-password" name="password" type="password" class="form-control" required />
+            </div>
+            <button type="submit" class="primary-button">Create employee</button>
+        </form>
+    </section>
+
+    <section class="panel">
+        <div class="panel-header">
+            <h3>Current employees</h3>
+        </div>
+        @if (employees.Count == 0)
+        {
+            <p>No employee accounts yet.</p>
+        }
+        else
+        {
+            @foreach (var employee in employees)
+            {
+                <article class="list-items" style="display:block;padding:16px 0;border-bottom:1px solid #e6e8ee;">
+                    <strong>@employee.DisplayName</strong>
+                    <div>@employee.Email</div>
+                    <small>@(employee.IsActive ? "Active" : "Disabled") · @AppRoles.Employee</small>
+
+                    <form method="post" action="/admin/employees/update" style="margin-top:12px;">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="userId" value="@employee.Id" />
+                        <div class="form-field">
+                            <label>Name</label>
+                            <input name="displayName" class="form-control" value="@employee.DisplayName" required />
+                        </div>
+                        <div class="form-field">
+                            <label>Email</label>
+                            <input name="email" type="email" class="form-control" value="@employee.Email" required />
+                        </div>
+                        <div class="form-field">
+                            <label>New password</label>
+                            <input name="password" type="password" class="form-control" placeholder="Leave blank to keep the current password" />
+                        </div>
+                        <button type="submit" class="secondary-button">Save changes</button>
+                    </form>
+
+                    <form method="post" action="/admin/employees/active" style="margin-top:8px;">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="userId" value="@employee.Id" />
+                        <input type="hidden" name="isActive" value="@(!employee.IsActive)" />
+                        <button type="submit" class="secondary-button">@(employee.IsActive ? "Disable account" : "Enable account")</button>
+                    </form>
+
+                    <form method="post" action="/admin/employees/delete" style="margin-top:8px;">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="userId" value="@employee.Id" />
+                        <button type="submit" class="secondary-button">Remove account</button>
+                    </form>
+                </article>
+            }
+        }
+    </section>
+</div>
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    [SupplyParameterFromQuery(Name = "notice")]
+    private string? Notice { get; set; }
+
+    [SupplyParameterFromQuery(Name = "detail")]
+    private string? Detail { get; set; }
+
+    private IReadOnlyList<EmployeeListItem> employees = [];
+
+    private bool IsSuccess => Notice is EmployeeAccountService.Created
+        or EmployeeAccountService.Updated
+        or EmployeeAccountService.Disabled
+        or EmployeeAccountService.Enabled
+        or EmployeeAccountService.Deleted;
+
+    private string? NoticeMessage => Notice switch
+    {
+        EmployeeAccountService.Created => "Employee account created and assigned the Employee role.",
+        EmployeeAccountService.Updated => "Employee account updated.",
+        EmployeeAccountService.Disabled => "Employee account disabled.",
+        EmployeeAccountService.Enabled => "Employee account enabled.",
+        EmployeeAccountService.Deleted => "Employee account removed.",
+        EmployeeAccountService.Validation or EmployeeAccountService.Forbidden or EmployeeAccountService.NotFound => Detail,
+        _ => null
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (HttpContext?.User is null)
+        {
+            return;
+        }
+
+        employees = await EmployeeAccounts.ListAsync(HttpContext.User);
+    }
+}

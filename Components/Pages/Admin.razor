@@ -1,0 +1,39 @@
+@page "/admin"
+@attribute [Authorize(Policy = StockFlowAuthorization.AdminPolicy)]
+
+<PageTitle>StockFlow | Admin</PageTitle>
+
+<div class="dashboard-page">
+    <div class="page-intro">
+        <div>
+            <span class="eyebrow">Admin access</span>
+            <h1>Administration Console</h1>
+        </div>
+        <div class="page-actions">
+            <a href="/admin/employees" class="primary-button">Manage employees</a>
+        </div>
+    </div>
+
+    <div class="stats-grid">
+        <article class="stat-card accent-blue">
+            <span class="stat-label">Products</span>
+            <strong>246</strong>
+            <small>Manage pricing and stock updates</small>
+        </article>
+        <article class="stat-card accent-green">
+            <span class="stat-label">Categories</span>
+            <strong>18</strong>
+            <small>Keep inventory organized</small>
+        </article>
+        <article class="stat-card accent-purple">
+            <span class="stat-label">Employees</span>
+            <strong>12</strong>
+            <small>Manage team access and roles</small>
+        </article>
+        <article class="stat-card accent-orange">
+            <span class="stat-label">Reports</span>
+            <strong>06</strong>
+            <small>Financial and sales insights</small>
+        </article>
+    </div>
+</div>

@@ -10,3 +10,7 @@ obj/
 # NuGet
 *.nupkg
 *.snupkg
+
+# Local database settings and the old SQLite file
+appsettings.Local.json
+stockflow.db

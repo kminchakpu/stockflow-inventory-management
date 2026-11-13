@@ -1,0 +1,89 @@
+@page "/dashboard"
+@attribute [Authorize]
+
+<PageTitle>StockFlow | Dashboard</PageTitle>
+
+<div class="dashboard-page">
+    <div class="page-intro">
+        <div>
+            <span class="eyebrow">Overview</span>
+            <h1>Welcome back, @displayName</h1>
+        </div>
+        <div class="page-actions">
+            <button class="secondary-button" type="button">Generate report</button>
+            <button class="primary-button" type="button">Create sale</button>
+        </div>
+    </div>
+
+    <div class="stats-grid dashboard-stats">
+        <article class="stat-card accent-blue">
+            <span class="stat-label">Inventory value</span>
+            <strong>$128,740</strong>
+            <small>+8.4% from last month</small>
+        </article>
+        <article class="stat-card accent-green">
+            <span class="stat-label">Stock in hand</span>
+            <strong>3,492</strong>
+            <small>186 items below reorder point</small>
+        </article>
+        <article class="stat-card accent-purple">
+            <span class="stat-label">Sales today</span>
+            <strong>$14,820</strong>
+            <small>+12.1% vs yesterday</small>
+        </article>
+        <article class="stat-card accent-orange">
+            <span class="stat-label">Orders pending</span>
+            <strong>34</strong>
+            <small>6 need approval</small>
+        </article>
+    </div>
+
+    <div class="content-grid">
+        <section class="panel large-panel">
+            <div class="panel-header">
+                <h3>Sales activity</h3>
+                <span class="pill neutral">This week</span>
+            </div>
+            <div class="chart-bars" aria-label="Sales chart">
+                <span style="height: 38%"></span>
+                <span style="height: 52%"></span>
+                <span style="height: 49%"></span>
+                <span style="height: 68%"></span>
+                <span style="height: 58%"></span>
+                <span style="height: 82%"></span>
+                <span style="height: 71%"></span>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-header">
+                <h3>Low stock alerts</h3>
+                <span class="pill warning">5 items</span>
+            </div>
+            <ul class="list-items">
+                <li><span>Premium coffee beans</span><strong>4</strong></li>
+                <li><span>Rice sacks</span><strong>6</strong></li>
+                <li><span>Paper towels</span><strong>8</strong></li>
+                <li><span>Toiletries pack</span><strong>3</strong></li>
+            </ul>
+        </section>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationState { get; set; }
+
+    private string displayName = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthenticationState is null)
+        {
+            return;
+        }
+
+        var state = await AuthenticationState;
+        displayName = state.User.Identity?.Name ?? "";
+    }
+}

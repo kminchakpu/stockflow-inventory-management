@@ -1,19 +1,50 @@
 ﻿@inherits LayoutComponentBase
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+<div class="app-shell">
+    <AuthorizeView>
+        <Authorized>
+            <aside class="app-sidebar">
+                <NavMenu />
+            </aside>
+        </Authorized>
+    </AuthorizeView>
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
+    <div class="app-main">
+        <header class="topbar">
+            <div class="topbar-brand">
+                <span class="topbar-mark">SF</span>
+                <div>
+                    <strong>StockFlow</strong>
+                    <small>Inventory operations</small>
+                </div>
+            </div>
 
-        <article class="content px-4">
+            <div class="topbar-actions">
+                <AuthorizeView>
+                    <Authorized>
+                        <div class="user-chip">
+                            <span class="status-dot"></span>
+                            <div>
+                                <strong>@context.User.Identity?.Name</strong>
+                                <small>@context.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value</small>
+                            </div>
+                        </div>
+                        <form method="post" action="/account/logout">
+                            <AntiforgeryToken />
+                            <button type="submit" class="logout-button">Logout</button>
+                        </form>
+                    </Authorized>
+                    <NotAuthorized>
+                        <a href="/login" class="login-button">Login</a>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
+        </header>
+
+        <main class="content-shell">
             @Body
-        </article>
-    </main>
+        </main>
+    </div>
 </div>
 
 <div id="blazor-error-ui" data-nosnippet>
