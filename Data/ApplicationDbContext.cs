@@ -10,4 +10,19 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         : base(options)
     {
     }
+
+    public DbSet<Product> Products => Set<Product>();
+
+    protected override void OnModelCreating(ModelBuilder builder)
+    {
+        base.OnModelCreating(builder);
+
+        builder.Entity<Product>()
+            .HasIndex(product => product.Sku)
+            .IsUnique();
+
+        builder.Entity<Product>()
+            .Property(product => product.UnitPrice)
+            .HasPrecision(18, 2);
+    }
 }
