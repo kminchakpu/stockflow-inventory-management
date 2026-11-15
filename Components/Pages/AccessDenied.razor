@@ -1,0 +1,19 @@
+@page "/access-denied"
+@attribute [AllowAnonymous]
+
+<PageTitle>StockFlow | Access denied</PageTitle>
+
+<div class="auth-page">
+    <div class="auth-card">
+        <div class="auth-form-panel" style="width:100%; max-width:480px; margin:0 auto;">
+            <div class="auth-header">
+                <span class="eyebrow">Access denied</span>
+                <h3>You do not have permission to view this page.</h3>
+            </div>
+
+            <p class="mb-3">The page you tried to open is restricted to a different role.</p>
+
+            <a href="/dashboard" class="primary-button d-inline-block text-center">Return to dashboard</a>
+        </div>
+    </div>
+</div>
