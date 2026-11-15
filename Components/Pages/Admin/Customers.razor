@@ -1,0 +1,199 @@
+@page "/admin/customers"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = StockFlow.Constants.Roles.Admin)]
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.EntityFrameworkCore
+@using StockFlow.Data
+@using StockFlow.Models
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
+@inject IJSRuntime JS
+
+<PageTitle>Customers</PageTitle>
+
+<h1>Customers</h1>
+
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
+
+<EditForm Model="@editModel" OnValidSubmit="@SaveAsync">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label for="customer-first-name" class="form-label">First name</label>
+            <InputText id="customer-first-name" class="form-control" @bind-Value="editModel.FirstName" />
+            <ValidationMessage For="@(() => editModel.FirstName)" />
+        </div>
+        <div class="col-md-6 mb-3">
+            <label for="customer-last-name" class="form-label">Last name</label>
+            <InputText id="customer-last-name" class="form-control" @bind-Value="editModel.LastName" />
+            <ValidationMessage For="@(() => editModel.LastName)" />
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label for="customer-email" class="form-label">Email</label>
+        <InputText id="customer-email" type="email" class="form-control" @bind-Value="editModel.Email" />
+        <ValidationMessage For="@(() => editModel.Email)" />
+    </div>
+
+    <div class="mb-3">
+        <label for="customer-phone" class="form-label">Phone number</label>
+        <InputText id="customer-phone" class="form-control" @bind-Value="editModel.PhoneNumber" />
+        <ValidationMessage For="@(() => editModel.PhoneNumber)" />
+    </div>
+
+    <div class="mb-3">
+        <label for="customer-address" class="form-label">Address</label>
+        <InputText id="customer-address" class="form-control" @bind-Value="editModel.Address" />
+        <ValidationMessage For="@(() => editModel.Address)" />
+    </div>
+
+    <button class="btn btn-primary" type="submit">
+        @(isEditing ? "Save changes" : "Add customer")
+    </button>
+    @if (isEditing)
+    {
+        <button class="btn btn-secondary ms-2" type="button" @onclick="CancelEdit">Cancel</button>
+    }
+</EditForm>
+
+<hr />
+
+@if (customers.Count == 0)
+{
+    <p>No customers yet.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr><th>Name</th><th>Email</th><th>Phone</th><th>Address</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var customer in customers)
+                {
+                    <tr @key="customer.CustomerId">
+                        <td>@customer.FirstName @customer.LastName</td>
+                        <td>@customer.Email</td>
+                        <td>@customer.PhoneNumber</td>
+                        <td>@customer.Address</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" type="button" @onclick="() => Edit(customer)">Edit</button>
+                            <button class="btn btn-sm btn-outline-danger ms-2" type="button" @onclick="() => DeleteAsync(customer.CustomerId)">Delete</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private List<Customer> customers = new();
+    private Customer editModel = new();
+    private bool isEditing;
+    private string? errorMessage;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        customers = await db.Customers
+            .AsNoTracking()
+            .OrderBy(customer => customer.LastName)
+            .ThenBy(customer => customer.FirstName)
+            .ToListAsync();
+    }
+
+    private async Task SaveAsync()
+    {
+        errorMessage = null;
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        if (isEditing)
+        {
+            var customer = await db.Customers.FindAsync(editModel.CustomerId);
+            if (customer is null)
+            {
+                errorMessage = "That customer could not be found.";
+                await LoadAsync();
+                CancelEdit();
+                return;
+            }
+
+            customer.FirstName = editModel.FirstName.Trim();
+            customer.LastName = editModel.LastName.Trim();
+            customer.Email = NormalizeEmail(editModel.Email);
+            customer.PhoneNumber = CleanOptional(editModel.PhoneNumber);
+            customer.Address = CleanOptional(editModel.Address);
+            customer.UpdatedAt = DateTime.UtcNow;
+        }
+        else
+        {
+            db.Customers.Add(new Customer
+            {
+                FirstName = editModel.FirstName.Trim(),
+                LastName = editModel.LastName.Trim(),
+                Email = NormalizeEmail(editModel.Email),
+                PhoneNumber = CleanOptional(editModel.PhoneNumber),
+                Address = CleanOptional(editModel.Address)
+            });
+        }
+
+        await db.SaveChangesAsync();
+        CancelEdit();
+        await LoadAsync();
+    }
+
+    private void Edit(Customer customer)
+    {
+        errorMessage = null;
+        isEditing = true;
+        editModel = new Customer
+        {
+            CustomerId = customer.CustomerId,
+            FirstName = customer.FirstName,
+            LastName = customer.LastName,
+            Email = customer.Email,
+            PhoneNumber = customer.PhoneNumber,
+            Address = customer.Address,
+            CreatedAt = customer.CreatedAt,
+            UpdatedAt = customer.UpdatedAt
+        };
+    }
+
+    private async Task DeleteAsync(int customerId)
+    {
+        errorMessage = null;
+        if (!await JS.InvokeAsync<bool>("confirm", "Delete this customer?")) return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var customer = await db.Customers.FindAsync(customerId);
+        if (customer is null)
+        {
+            errorMessage = "That customer could not be found.";
+            await LoadAsync();
+            return;
+        }
+
+        db.Customers.Remove(customer);
+        await db.SaveChangesAsync();
+        await LoadAsync();
+    }
+
+    private void CancelEdit()
+    {
+        editModel = new Customer();
+        isEditing = false;
+        errorMessage = null;
+    }
+
+    private static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
+    private static string? CleanOptional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+}
