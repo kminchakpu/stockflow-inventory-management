@@ -1,0 +1,531 @@
+
+@page "/admin/inventory"
+@layout StockFlow.Components.Admin.AdminLayout
+@attribute [Authorize(Policy = StockFlowAuthorization.AdminPolicy)]
+@using Microsoft.AspNetCore.Authorization
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components.Authorization
+@using StockFlow.Components.Services
+@using StockFlow.Models
+@inject InventoryService InventoryService
+@inject ProductService ProductService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>StockFlow | Inventory Management</PageTitle>
+
+<div class="inventory-page">
+    <section class="inventory-welcome">
+        <div>
+            <span class="inventory-eyebrow">INVENTORY MANAGEMENT</span>
+            <h2>Inventory Management</h2>
+            <p>Monitor stock levels, record stock movements, and review inventory transactions.</p>
+        </div>
+        <div class="inventory-welcome-actions">
+            <button type="button" class="inventory-receive-button" @onclick="() => ShowForm(InventoryTransactionType.StockReceived)">+ Receive Stock</button>
+            <button type="button" class="inventory-issue-button" @onclick="() => ShowForm(InventoryTransactionType.StockIssued)">− Issue Stock</button>
+            <button type="button" class="inventory-adjust-button" @onclick="() => ShowForm(InventoryTransactionType.Adjustment)">↔ Adjust Stock</button>
+        </div>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <div class="inventory-alert inventory-alert-error" role="alert">@_errorMessage</div>
+    }
+    @if (!string.IsNullOrWhiteSpace(_successMessage))
+    {
+        <div class="inventory-alert inventory-alert-success" role="status">@_successMessage</div>
+    }
+
+    @if (_showForm)
+    {
+        <section class="inventory-form-panel">
+            <div class="inventory-form-heading">
+                <div>
+                    <span class="inventory-eyebrow">STOCK TRANSACTION</span>
+                    <h3>@FormTitle</h3>
+                    <p>@FormDescription</p>
+                </div>
+                <button type="button" class="inventory-close-button" @onclick="CancelForm" disabled="@_isSaving" aria-label="Close form">×</button>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_formError))
+            {
+                <div class="inventory-alert inventory-alert-error" role="alert">@_formError</div>
+            }
+            <EditForm Model="_transactionInput" OnValidSubmit="SaveTransactionAsync">
+                <DataAnnotationsValidator />
+                <div class="inventory-form-grid">
+                    <div class="inventory-form-field inventory-product-field">
+                        <label for="inventory-product">Product <span>*</span></label>
+                        <InputSelect id="inventory-product" class="inventory-form-input" @bind-Value="_transactionInput.ProductId">
+                            <option value="0">Select a product</option>
+                            @foreach (var product in _activeProducts)
+                            {
+                                <option value="@product.Id">@product.Name (@product.SKU) — Stock: @product.QuantityInStock</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => _transactionInput.ProductId)" />
+                    </div>
+                    @if (_transactionType == InventoryTransactionType.Adjustment)
+                    {
+                        <div class="inventory-form-field">
+                            <label for="inventory-quantity">New Physical Stock Quantity <span>*</span></label>
+                            <InputNumber id="inventory-quantity" class="inventory-form-input" @bind-Value="_transactionInput.Quantity" min="0" />
+                            <ValidationMessage For="@(() => _transactionInput.Quantity)" />
+                            <small>Enter the actual quantity counted during your stock check.</small>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="inventory-form-field">
+                            <label for="inventory-quantity">Quantity <span>*</span></label>
+                            <InputNumber id="inventory-quantity" class="inventory-form-input" @bind-Value="_transactionInput.Quantity" min="1" />
+                            <ValidationMessage For="@(() => _transactionInput.Quantity)" />
+                        </div>
+                    }
+                    <div class="inventory-form-field inventory-notes-field">
+                        <label for="inventory-notes">Notes</label>
+                        <InputTextArea id="inventory-notes" class="inventory-form-input inventory-notes-input" @bind-Value="_transactionInput.Notes" placeholder="Enter a reason or additional details..." />
+                        <ValidationMessage For="@(() => _transactionInput.Notes)" />
+                    </div>
+                </div>
+                @if (SelectedProduct is not null)
+                {
+                    <div class="inventory-stock-preview">
+                        <span>Current stock</span>
+                        <strong>@SelectedProduct.QuantityInStock</strong>
+                        @if (_transactionType == InventoryTransactionType.StockReceived && _transactionInput.Quantity > 0)
+                        {
+                            <span class="preview-positive">New stock: @((long)SelectedProduct.QuantityInStock + _transactionInput.Quantity)</span>
+                        }
+                        else if (_transactionType == InventoryTransactionType.StockIssued && _transactionInput.Quantity > 0)
+                        {
+                            <span class="@(_transactionInput.Quantity > SelectedProduct.QuantityInStock ? "preview-negative" : "preview-neutral")">
+                                @(_transactionInput.Quantity > SelectedProduct.QuantityInStock ? "Insufficient stock" : $"Remaining stock: {SelectedProduct.QuantityInStock - _transactionInput.Quantity}")
+                            </span>
+                        }
+                        else if (_transactionType == InventoryTransactionType.Adjustment)
+                        {
+                            <span class="preview-neutral">New physical count: @_transactionInput.Quantity</span>
+                        }
+                    </div>
+                }
+                <div class="inventory-form-actions">
+                    <button type="button" class="inventory-cancel-button" @onclick="CancelForm" disabled="@_isSaving">Cancel</button>
+                    <button type="submit" class="inventory-submit-button" disabled="@(_isSaving || _activeProducts.Count == 0)">
+                        @(_isSaving ? "Processing..." : FormSubmitText)
+                    </button>
+                </div>
+            </EditForm>
+        </section>
+    }
+
+    <section class="inventory-summary" aria-label="Inventory summary">
+        <article class="inventory-summary-card">
+            <span class="inventory-summary-icon">▦</span>
+            <span class="inventory-summary-label">Total Stock Items</span>
+            <strong>@_activeProducts.Count</strong>
+            <span>Active products</span>
+        </article>
+        <article class="inventory-summary-card">
+            <span class="inventory-summary-icon warning">!</span>
+            <span class="inventory-summary-label">Low Stock Items</span>
+            <strong>@_activeProducts.Count(product => product.IsLowStock)</strong>
+            <span>At or below minimum level</span>
+        </article>
+        <article class="inventory-summary-card">
+            <span class="inventory-summary-icon received">↙</span>
+            <span class="inventory-summary-label">Stock Received</span>
+            <strong>@_transactions.Count(transaction => transaction.TransactionType == InventoryTransactionType.StockReceived)</strong>
+            <span>Recorded receipts</span>
+        </article>
+        <article class="inventory-summary-card">
+            <span class="inventory-summary-icon issued">↗</span>
+            <span class="inventory-summary-label">Stock Issued</span>
+            <strong>@_transactions.Count(transaction => transaction.TransactionType == InventoryTransactionType.StockIssued)</strong>
+            <span>Recorded issues</span>
+        </article>
+    </section>
+
+    <section class="inventory-stock-panel">
+        <div class="inventory-panel-heading">
+            <div>
+                <h3>Current Stock Levels</h3>
+                <p>Review available quantities and identify products that need replenishment.</p>
+            </div>
+            <span class="inventory-record-count">@_activeProducts.Count products</span>
+        </div>
+        @if (_isLoading)
+        {
+            <div class="inventory-empty-state">
+                <h4>Loading inventory...</h4>
+                <p>Please wait while we retrieve stock information.</p>
+            </div>
+        }
+        else if (_activeProducts.Count == 0)
+        {
+            <div class="inventory-empty-state">
+                <h4>No active products found</h4>
+                <p>Create and activate products before recording inventory transactions.</p>
+            </div>
+        }
+        else
+        {
+            <div class="inventory-table-wrapper">
+                <table class="inventory-table">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>SKU</th>
+                            <th>Category</th>
+                            <th>Available Stock</th>
+                            <th>Minimum Level</th>
+                            <th>Stock Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var product in _activeProducts)
+                        {
+                            <tr @key="product.Id">
+                                <td><strong>@product.Name</strong></td>
+                                <td>@product.SKU</td>
+                                <td>@product.CategoryName</td>
+                                <td><strong class="inventory-quantity @(product.IsLowStock ? "low" : "")">@product.QuantityInStock</strong></td>
+                                <td>@product.MinimumStockLevel</td>
+                                <td>
+                                    <span class="inventory-status @(product.IsLowStock ? "low" : "normal")">
+                                        @(product.IsLowStock ? "Low Stock" : "In Stock")
+                                    </span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    <section class="inventory-history-panel">
+        <div class="inventory-panel-heading">
+            <div>
+                <h3>Inventory Transaction History</h3>
+                <p>Track all stock receipts, issues, and adjustments.</p>
+            </div>
+            <span class="inventory-record-count">@_filteredTransactions.Count transactions</span>
+        </div>
+        <div class="inventory-history-filters">
+            <div class="inventory-search">
+                <input type="search" @bind="_searchTerm" @bind:event="oninput" placeholder="Search product, SKU, or notes..." aria-label="Search inventory transactions" />
+                <button type="button" @onclick="SearchTransactionsAsync" disabled="@_isLoading">Search</button>
+                <button type="button" class="inventory-clear-button" @onclick="ClearSearchAsync" disabled="@(_isLoading || string.IsNullOrWhiteSpace(_searchTerm))">Clear</button>
+            </div>
+            <div class="inventory-type-filter">
+                <label for="transaction-type">Transaction Type</label>
+                <select id="transaction-type" @bind="_typeFilter" @bind:after="ApplyTransactionFilter">
+                    <option value="all">All transactions</option>
+                    <option value="received">Stock received</option>
+                    <option value="issued">Stock issued</option>
+                    <option value="adjustment">Adjustments</option>
+                </select>
+            </div>
+        </div>
+        @if (_isLoading)
+        {
+            <div class="inventory-empty-state">
+                <h4>Loading transactions...</h4>
+            </div>
+        }
+        else if (_filteredTransactions.Count == 0)
+        {
+            <div class="inventory-empty-state">
+                <h4>No inventory transactions found</h4>
+                <p>Transactions will appear here after you receive, issue, or adjust stock.</p>
+            </div>
+        }
+        else
+        {
+            <div class="inventory-table-wrapper">
+                <table class="inventory-table history-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Product</th>
+                            <th>Transaction</th>
+                            <th>Quantity</th>
+                            <th>Previous Stock</th>
+                            <th>New Stock</th>
+                            <th>Recorded By</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var transaction in _filteredTransactions)
+                        {
+                            <tr @key="transaction.Id">
+                                <td>@transaction.CreatedAt.ToLocalTime().ToString("dd MMM yyyy, h:mm tt")</td>
+                                <td>
+                                    <strong>@transaction.ProductName</strong>
+                                    <small class="inventory-sku">@transaction.SKU</small>
+                                </td>
+                                <td>
+                                    <span class="transaction-type-badge @GetTransactionClass(transaction.TransactionType)">
+                                        @GetTransactionLabel(transaction.TransactionType)
+                                    </span>
+                                </td>
+                                <td class="transaction-quantity @(transaction.Quantity < 0 ? "negative" : "positive")">
+                                    @(transaction.Quantity > 0 ? "+" : "")@transaction.Quantity
+                                </td>
+                                <td>@transaction.PreviousQuantity</td>
+                                <td><strong>@transaction.NewQuantity</strong></td>
+                                <td>@(string.IsNullOrWhiteSpace(transaction.CreatedByName) ? "System / Unknown" : transaction.CreatedByName)</td>
+                                <td>@(string.IsNullOrWhiteSpace(transaction.Notes) ? "—" : transaction.Notes)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    private List<ProductListItem> _activeProducts = [];
+    private List<InventoryTransactionListItem> _transactions = [];
+    private List<InventoryTransactionListItem> _filteredTransactions = [];
+    private InventoryInputModel _transactionInput = new();
+    private InventoryTransactionType _transactionType;
+    private string _searchTerm = string.Empty;
+    private string _typeFilter = "all";
+    private string? _errorMessage;
+    private string? _successMessage;
+    private string? _formError;
+    private bool _showForm;
+    private bool _isLoading = true;
+    private bool _isSaving;
+
+    private ProductListItem? SelectedProduct =>
+        _activeProducts.FirstOrDefault(product => product.Id == _transactionInput.ProductId);
+
+    private string FormTitle => _transactionType switch
+    {
+        InventoryTransactionType.StockReceived => "Receive Stock",
+        InventoryTransactionType.StockIssued => "Issue Stock",
+        InventoryTransactionType.Adjustment => "Adjust Stock",
+        _ => "Inventory Transaction"
+    };
+
+    private string FormDescription => _transactionType switch
+    {
+        InventoryTransactionType.StockReceived => "Record additional stock received for a product.",
+        InventoryTransactionType.StockIssued => "Record stock issued from available inventory.",
+        InventoryTransactionType.Adjustment => "Correct the available stock to match your physical count.",
+        _ => "Record an inventory transaction."
+    };
+
+    private string FormSubmitText => _transactionType switch
+    {
+        InventoryTransactionType.StockReceived => "Receive Stock",
+        InventoryTransactionType.StockIssued => "Issue Stock",
+        InventoryTransactionType.Adjustment => "Save Adjustment",
+        _ => "Save Transaction"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await LoadInventoryAsync();
+        }
+        catch (Exception)
+        {
+            _errorMessage = "Unable to load inventory information. Please try again.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoadInventoryAsync()
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authenticationState.User;
+
+        var products = await ProductService.ListAsync(user, includeInactive: false);
+        _activeProducts = products.Where(product => product.IsActive).ToList();
+
+        var transactions = await InventoryService.ListAsync(user);
+        _transactions = transactions.ToList();
+
+        ApplyTransactionFilter();
+    }
+
+    private void ShowForm(InventoryTransactionType type)
+    {
+        if (_activeProducts.Count == 0)
+        {
+            _errorMessage = "Create and activate a product before recording inventory transactions.";
+            return;
+        }
+
+        _transactionType = type;
+        _transactionInput = new()
+        {
+            ProductId = _activeProducts[0].Id
+        };
+        _formError = null;
+        _errorMessage = null;
+        _successMessage = null;
+        _showForm = true;
+    }
+
+    private void CancelForm()
+    {
+        _showForm = false;
+        _formError = null;
+        _transactionInput = new();
+    }
+
+    private async Task SaveTransactionAsync()
+    {
+        _isSaving = true;
+        _formError = null;
+        _successMessage = null;
+
+        try
+        {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            InventoryActionResult result;
+
+            if (_transactionType == InventoryTransactionType.StockReceived)
+            {
+                result = await InventoryService.ReceiveStockAsync(
+                    authenticationState.User,
+                    _transactionInput.ProductId,
+                    _transactionInput.Quantity,
+                    _transactionInput.Notes);
+            }
+            else if (_transactionType == InventoryTransactionType.StockIssued)
+            {
+                result = await InventoryService.IssueStockAsync(
+                    authenticationState.User,
+                    _transactionInput.ProductId,
+                    _transactionInput.Quantity,
+                    _transactionInput.Notes);
+            }
+            else
+            {
+                result = await InventoryService.AdjustStockAsync(
+                    authenticationState.User,
+                    _transactionInput.ProductId,
+                    _transactionInput.Quantity,
+                    _transactionInput.Notes);
+            }
+
+            if (!result.Succeeded)
+            {
+                _formError = result.Detail;
+                return;
+            }
+
+            _showForm = false;
+            _transactionInput = new();
+            await LoadInventoryAsync();
+
+            _successMessage = result.Code switch
+            {
+                "received" => "Stock received successfully.",
+                "issued" => "Stock issued successfully.",
+                "adjusted" => "Stock adjusted successfully.",
+                _ => "Inventory transaction completed successfully."
+            };
+        }
+        catch (Exception)
+        {
+            _formError = "An unexpected error occurred while processing the inventory transaction.";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task SearchTransactionsAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var transactions = await InventoryService.ListAsync(
+                authenticationState.User,
+                _searchTerm);
+
+            _transactions = transactions.ToList();
+            ApplyTransactionFilter();
+        }
+        catch (Exception)
+        {
+            _errorMessage = "Unable to search inventory transactions. Please try again.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task ClearSearchAsync()
+    {
+        _searchTerm = string.Empty;
+        await SearchTransactionsAsync();
+    }
+
+    private void ApplyTransactionFilter()
+    {
+        var filtered = _transactions.AsEnumerable();
+
+        filtered = _typeFilter switch
+        {
+            "received" => filtered.Where(transaction => transaction.TransactionType == InventoryTransactionType.StockReceived),
+            "issued" => filtered.Where(transaction => transaction.TransactionType == InventoryTransactionType.StockIssued),
+            "adjustment" => filtered.Where(transaction => transaction.TransactionType == InventoryTransactionType.Adjustment),
+            _ => filtered
+        };
+
+        _filteredTransactions = filtered.ToList();
+    }
+
+    private static string GetTransactionLabel(InventoryTransactionType type)
+    {
+        return type switch
+        {
+            InventoryTransactionType.StockReceived => "Received",
+            InventoryTransactionType.StockIssued => "Issued",
+            InventoryTransactionType.Adjustment => "Adjustment",
+            _ => "Unknown"
+        };
+    }
+
+    private static string GetTransactionClass(InventoryTransactionType type)
+    {
+        return type switch
+        {
+            InventoryTransactionType.StockReceived => "received",
+            InventoryTransactionType.StockIssued => "issued",
+            InventoryTransactionType.Adjustment => "adjustment",
+            _ => string.Empty
+        };
+    }
+
+    private sealed class InventoryInputModel
+    {
+        [Range(1, int.MaxValue, ErrorMessage = "Please select a product.")]
+        public int ProductId { get; set; }
+
+        [Range(0, int.MaxValue, ErrorMessage = "Quantity cannot be negative.")]
+        public int Quantity { get; set; }
+
+        [StringLength(500, ErrorMessage = "Notes cannot exceed 500 characters.")]
+        public string? Notes { get; set; }
+    }
+}

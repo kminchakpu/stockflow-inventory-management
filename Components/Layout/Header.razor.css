@@ -178,3 +178,20 @@
         transition: none;
     }
 }
+.header-logout-form {
+    margin: 0;
+}
+.header-logout-button {
+    border: 0;
+    cursor: pointer;
+    font-family: inherit;
+}
+.mobile-logout-form {
+    margin: 5px 0 0;
+}
+.mobile-nav .nav-logout {
+    width: 100%;
+    border: 0;
+    cursor: pointer;
+    font-family: inherit;
+}

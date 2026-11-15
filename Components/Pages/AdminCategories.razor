@@ -1,0 +1,349 @@
+
+@page "/admin/categories"
+@layout StockFlow.Components.Admin.AdminLayout
+@attribute [Authorize(Policy = StockFlowAuthorization.AdminPolicy)]
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using StockFlow.Components.Services
+@inject CategoryService CategoryService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>StockFlow | Category Management</PageTitle>
+
+<div class="categories-page">
+    <section class="categories-welcome">
+        <div>
+            <span class="categories-eyebrow">INVENTORY MANAGEMENT</span>
+            <h2>Category Management</h2>
+            <p>Create and organize product categories for your inventory.</p>
+        </div>
+        <button type="button" class="primary-button" @onclick="ShowCreateForm">
+            <span>+</span> Add Category
+        </button>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <div class="category-error" role="alert">@_errorMessage</div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_successMessage))
+    {
+        <div class="category-success" role="status">@_successMessage</div>
+    }
+
+    @if (_showForm)
+    {
+        <section class="category-form-panel">
+            <div class="category-form-heading">
+                <div>
+                    <h3>@(_isEditing ? "Edit Category" : "Create New Category")</h3>
+                    <p>@(_isEditing ? "Update the details of this product category." : "Enter the details for your new product category.")</p>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(_formError))
+            {
+                <div class="category-error" role="alert">@_formError</div>
+            }
+
+            <EditForm Model="_categoryInput" OnValidSubmit="SaveCategoryAsync">
+                <DataAnnotationsValidator />
+                <div class="category-form-grid">
+                    <div class="category-form-field">
+                        <label for="category-name">Category Name <span>*</span></label>
+                        <InputText id="category-name" class="category-form-input" @bind-Value="_categoryInput.Name" placeholder="e.g. Electronics" />
+                        <ValidationMessage For="@(() => _categoryInput.Name)" />
+                    </div>
+                    <div class="category-form-field">
+                        <label for="category-description">Description</label>
+                        <InputTextArea id="category-description" class="category-form-input category-description-input" @bind-Value="_categoryInput.Description" placeholder="Describe this product category..." />
+                        <ValidationMessage For="@(() => _categoryInput.Description)" />
+                    </div>
+                </div>
+                <div class="category-form-actions">
+                    <button type="button" class="secondary-button" @onclick="CancelForm" disabled="@_isSaving">Cancel</button>
+                    <button type="submit" class="primary-button" disabled="@_isSaving">
+                        @(_isSaving ? "Saving..." : _isEditing ? "Save Changes" : "Save Category")
+                    </button>
+                </div>
+            </EditForm>
+        </section>
+    }
+
+    <section class="category-summary" aria-label="Category summary">
+        <article class="summary-card">
+            <span class="summary-label">Total Categories</span>
+            <strong>@_categories.Count</strong>
+            <span>All registered categories</span>
+        </article>
+        <article class="summary-card">
+            <span class="summary-label">Active Categories</span>
+            <strong>@_categories.Count(category => category.IsActive)</strong>
+            <span>Available for products</span>
+        </article>
+        <article class="summary-card">
+            <span class="summary-label">Inactive Categories</span>
+            <strong>@_categories.Count(category => !category.IsActive)</strong>
+            <span>Currently unavailable</span>
+        </article>
+    </section>
+
+    <section class="category-panel">
+        <div class="category-panel-heading">
+            <div>
+                <h3>All Categories</h3>
+                <p>Manage the categories used to organize your products.</p>
+            </div>
+            <div class="category-filter">
+                <label for="category-status">Status</label>
+                <select id="category-status" @bind="_statusFilter" @bind:after="ApplyStatusFilter">
+                    <option value="all">All categories</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+            </div>
+        </div>
+
+        @if (_isLoading)
+        {
+            <div class="category-empty-state">
+                <h4>Loading categories...</h4>
+                <p>Please wait while we retrieve your categories.</p>
+            </div>
+        }
+        else if (_visibleCategories.Count == 0)
+        {
+            <div class="category-empty-state">
+                <div class="empty-category-icon">▧</div>
+                <h4>@(_categories.Count == 0 ? "No categories have been created" : "No matching categories")</h4>
+                <p>@(_categories.Count == 0 ? "Categories will appear here after you create your first category." : "Try selecting a different status filter.")</p>
+                @if (_categories.Count == 0)
+                {
+                    <button type="button" class="secondary-button" @onclick="ShowCreateForm">Create First Category</button>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="category-table-wrapper">
+                <table class="category-table">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Description</th>
+                            <th>Products</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var category in _visibleCategories)
+                        {
+                            <tr @key="category.Id">
+                                <td><strong>@category.Name</strong></td>
+                                <td>@(string.IsNullOrWhiteSpace(category.Description) ? "—" : category.Description)</td>
+                                <td>@category.ProductCount</td>
+                                <td>
+                                    <span class="category-status-badge @(category.IsActive ? "active" : "inactive")">
+                                        @(category.IsActive ? "Active" : "Inactive")
+                                    </span>
+                                </td>
+                               <td>
+                                <div class="category-row-actions">
+                                    <button type="button" class="category-edit-button" @onclick="() => EditCategory(category)">Edit</button>
+                                    <button type="button" class="category-toggle-button @(category.IsActive ? "deactivate" : "activate")" @onclick="() => ToggleCategoryStatusAsync(category)" disabled="@_isUpdatingStatus">
+                                        @(category.IsActive ? "Deactivate" : "Activate")
+                                    </button>
+                                </div>
+                            </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    private List<CategoryListItem> _categories = [];
+    private List<CategoryListItem> _visibleCategories = [];
+    private CategoryInputModel _categoryInput = new();
+    private string _statusFilter = "all";
+    private string? _errorMessage;
+    private string? _successMessage;
+    private string? _formError;
+    private bool _showForm;
+    private bool _isEditing;
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private bool _isUpdatingStatus;
+    private int? _editingCategoryId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await LoadCategoriesAsync();
+        }
+        catch (Exception)
+        {
+            _errorMessage = "Unable to load categories. Please try again.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoadCategoriesAsync()
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var categories = await CategoryService.ListAsync(authenticationState.User, includeInactive: true);
+        _categories = categories.ToList();
+        ApplyStatusFilter();
+    }
+
+    private void ApplyStatusFilter()
+    {
+        _visibleCategories = _statusFilter switch
+        {
+            "active" => _categories.Where(category => category.IsActive).ToList(),
+            "inactive" => _categories.Where(category => !category.IsActive).ToList(),
+            _ => _categories.ToList()
+        };
+    }
+
+    private void ShowCreateForm()
+    {
+        _categoryInput = new();
+        _editingCategoryId = null;
+        _isEditing = false;
+        _formError = null;
+        _errorMessage = null;
+        _successMessage = null;
+        _showForm = true;
+    }
+
+    private void EditCategory(CategoryListItem category)
+    {
+        _categoryInput = new()
+        {
+            Name = category.Name,
+            Description = category.Description
+        };
+        _editingCategoryId = category.Id;
+        _isEditing = true;
+        _formError = null;
+        _errorMessage = null;
+        _successMessage = null;
+        _showForm = true;
+    }
+
+    private void CancelForm()
+    {
+        _showForm = false;
+        _formError = null;
+        _categoryInput = new();
+        _editingCategoryId = null;
+        _isEditing = false;
+    }
+
+    private async Task SaveCategoryAsync()
+    {
+        _isSaving = true;
+        _formError = null;
+        _successMessage = null;
+
+        try
+        {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+
+            var result = _isEditing
+                ? await CategoryService.UpdateAsync(
+                    authenticationState.User,
+                    _editingCategoryId!.Value,
+                    _categoryInput.Name,
+                    _categoryInput.Description)
+                : await CategoryService.CreateAsync(
+                    authenticationState.User,
+                    _categoryInput.Name,
+                    _categoryInput.Description);
+
+            if (!result.Succeeded)
+            {
+                _formError = result.Detail;
+                return;
+            }
+
+            var wasEditing = _isEditing;
+            _showForm = false;
+            _categoryInput = new();
+            _editingCategoryId = null;
+            _isEditing = false;
+
+            await LoadCategoriesAsync();
+
+            _successMessage = wasEditing
+                ? "Category updated successfully."
+                : "Category created successfully.";
+        }
+        catch (Exception)
+        {
+            _formError = "An unexpected error occurred while saving the category. Please try again.";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+        private async Task ToggleCategoryStatusAsync(CategoryListItem category)
+{
+    _isUpdatingStatus = true;
+    _errorMessage = null;
+    _successMessage = null;
+
+    try
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var newStatus = !category.IsActive;
+
+        var result = await CategoryService.SetActiveAsync(
+            authenticationState.User,
+            category.Id,
+            newStatus);
+
+        if (!result.Succeeded)
+        {
+            _errorMessage = result.Detail;
+            return;
+        }
+
+        await LoadCategoriesAsync();
+
+        _successMessage = newStatus
+            ? $"'{category.Name}' has been activated successfully."
+            : $"'{category.Name}' has been deactivated successfully.";
+    }
+    catch (Exception)
+    {
+        _errorMessage = "An unexpected error occurred while updating the category status.";
+    }
+    finally
+    {
+        _isUpdatingStatus = false;
+    }
+}
+    private sealed class CategoryInputModel
+    {
+        [Required(ErrorMessage = "Category name is required.")]
+        [StringLength(100, ErrorMessage = "Category name cannot exceed 100 characters.")]
+        public string Name { get; set; } = string.Empty;
+
+        [StringLength(500, ErrorMessage = "Description cannot exceed 500 characters.")]
+        public string? Description { get; set; }
+    }
+}
