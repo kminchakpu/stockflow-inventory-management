@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using StockFlow.Components;
+using StockFlow.Components.Services;
 using StockFlow.Data;
 using StockFlow.Models;
 
@@ -36,13 +37,17 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.Cookie.HttpOnly = true;
     options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
     options.Cookie.SameSite = SameSiteMode.Lax;
-    options.LoginPath = "/Account/Login";
-    options.AccessDeniedPath = "/AccessDenied";
+    options.LoginPath = "/login";
+    options.AccessDeniedPath = "/access-denied";
     options.ExpireTimeSpan = TimeSpan.FromHours(8);
     options.SlidingExpiration = true;
 });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(StockFlowAuthorization.Configure);
+builder.Services.AddScoped<EmployeeAccountService>();
+builder.Services.AddScoped<CategoryService>();
+builder.Services.AddScoped<ProductService>();
+builder.Services.AddScoped<InventoryService>();
 builder.Services.AddCascadingAuthenticationState();
 
 builder.Services.AddRazorComponents()
@@ -66,8 +71,13 @@ app.UseAuthorization();
 
 app.UseAntiforgery();
 
+app.MapAccountEndpoints();
+
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
+
+
+

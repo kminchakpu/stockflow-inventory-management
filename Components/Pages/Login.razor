@@ -1,0 +1,95 @@
+@page "/login"
+@attribute [AllowAnonymous]
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using StockFlow.Components.Services
+@inject NavigationManager Navigation
+<PageTitle>StockFlow | Login</PageTitle>
+<div class="auth-page">
+    <div class="auth-card">
+        <div class="auth-brand-panel">
+            <div class="brand-block">
+                <div class="brand-mark">SF</div>
+                <div>
+                    <p class="brand-label">Inventory Suite</p>
+                    <h2>StockFlow</h2>
+                </div>
+            </div>
+            <div class="hero-copy">
+                <span class="eyebrow">Operations control</span>
+                <h1>Track stock, sales, and service from one command center.</h1>
+                <p>Designed for retail teams that need faster decisions, accurate inventory, and a smoother daily workflow.</p>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <strong>Live</strong>
+                    <span>Inventory</span>
+                </div>
+                <div class="stat-item">
+                    <strong>Clear</strong>
+                    <span>Operations</span>
+                </div>
+                <div class="stat-item">
+                    <strong>Unified</strong>
+                    <span>Management</span>
+                </div>
+            </div>
+        </div>
+        <div class="auth-form-panel">
+            <div class="auth-header">
+                <span class="eyebrow">Welcome back</span>
+                <h3>Sign in to continue</h3>
+            </div>
+            <form method="post" action="/account/login">
+                <AntiforgeryToken />
+                @if (!string.IsNullOrWhiteSpace(ReturnUrl))
+                {
+                    <input type="hidden" name="returnUrl" value="@ReturnUrl" />
+                }
+                @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+                {
+                    <div class="alert-danger">@ErrorMessage</div>
+                }
+                <div class="form-field">
+                    <label for="email">Email address</label>
+                    <input id="email" name="email" type="email" class="form-control" placeholder="name@company.com" autocomplete="username" required />
+                </div>
+                <div class="form-field">
+                    <label for="password">Password</label>
+                    <input id="password" name="password" type="password" class="form-control" placeholder="Enter your password" autocomplete="current-password" required />
+                </div>
+                <div class="form-row">
+                    <label class="remember-me" for="rememberMe">
+                        <input id="rememberMe" name="rememberMe" type="checkbox" value="true" />
+                        <span>Keep me signed in</span>
+                    </label>
+                    <span class="text-link">Contact your administrator if you need access assistance.</span>
+                </div>
+                <button type="submit" class="primary-button">Sign in</button>
+            </form>
+        </div>
+    </div>
+</div>
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationState { get; set; }
+    [SupplyParameterFromQuery(Name = "error")]
+    private string? ErrorCode { get; set; }
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    private string? ReturnUrl { get; set; }
+    private string? ErrorMessage => ErrorCode switch
+    {
+        "missing" => "Enter your email address and password.",
+        "email" => "Enter a valid email address.",
+        "locked" or "invalid" => "Unable to sign in. Check your details or try again later.",
+        _ => null
+    };
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthenticationState is null)
+            return;
+        var state = await AuthenticationState;
+        if (state.User.Identity?.IsAuthenticated == true)
+            Navigation.NavigateTo(StockFlowAuthorization.HomeFor(state.User), forceLoad: true);
+    }
+}

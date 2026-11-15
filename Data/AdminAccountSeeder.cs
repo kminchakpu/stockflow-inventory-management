@@ -1,3 +1,4 @@
+
 using Microsoft.AspNetCore.Identity;
 using StockFlow.Constants;
 using StockFlow.Models;
@@ -12,6 +13,7 @@ public static class AdminAccountSeeder
         var password = configuration["BootstrapAdmin:Password"];
         var firstName = configuration["BootstrapAdmin:FirstName"];
         var lastName = configuration["BootstrapAdmin:LastName"];
+        var resetPassword = configuration.GetValue<bool>("BootstrapAdmin:ResetPassword");
 
         if (string.IsNullOrWhiteSpace(email) &&
             string.IsNullOrWhiteSpace(password) &&
@@ -32,7 +34,6 @@ public static class AdminAccountSeeder
 
         using var scope = services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-
         var existingUser = await userManager.FindByEmailAsync(email);
 
         if (existingUser is not null)
@@ -41,6 +42,18 @@ public static class AdminAccountSeeder
             {
                 throw new InvalidOperationException(
                     "The configured BootstrapAdmin email already belongs to a user who is not an Admin. Review account before proceeding.");
+            }
+
+            if (resetPassword)
+            {
+                var token = await userManager.GeneratePasswordResetTokenAsync(existingUser);
+                var resetResult = await userManager.ResetPasswordAsync(existingUser, token, password);
+
+                if (!resetResult.Succeeded)
+                {
+                    var errors = string.Join("; ", resetResult.Errors.Select(error => error.Description));
+                    throw new InvalidOperationException($"Failed to reset the initial Admin password: {errors}");
+                }
             }
 
             return;
