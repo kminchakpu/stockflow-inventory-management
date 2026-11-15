@@ -4,13 +4,13 @@ using StockFlow.Components;
 using StockFlow.Data;
 using StockFlow.Models;
 
-
 var builder = WebApplication.CreateBuilder(args);
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("The DefaultConnection connection string was not found.");
+    ?? throw new InvalidOperationException(
+        "The DefaultConnection connection string was not found.");
 
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
+builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
     options.UseNpgsql(connectionString));
 
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
@@ -49,6 +49,7 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 var app = builder.Build();
+
 await IdentitySeeder.SeedRolesAsync(app.Services);
 await AdminAccountSeeder.SeedAsync(app.Services, app.Configuration);
 
@@ -58,7 +59,10 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+app.UseStatusCodePagesWithReExecute(
+    "/not-found",
+    createScopeForStatusCodePages: true);
+
 app.UseHttpsRedirection();
 
 app.UseAuthentication();
@@ -67,6 +71,7 @@ app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
