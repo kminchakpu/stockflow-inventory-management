@@ -19,6 +19,7 @@ public sealed class EmployeeAccountService
 {
     public const string Created = "created";
     public const string Updated = "updated";
+    public const string Deleted = "deleted";
     public const string Disabled = "disabled";
     public const string Enabled = "enabled";
     public const string Validation = "validation";
@@ -160,6 +161,32 @@ public sealed class EmployeeAccountService
         return EmployeeActionResult.Ok(Updated);
     }
 
+
+public async Task<EmployeeActionResult> DeleteAsync(
+    ClaimsPrincipal actor,
+    string? userId)
+{
+    if (!await IsAdminAsync(actor))
+        return EmployeeActionResult.Fail(Forbidden, "Only an administrator can delete employee accounts.");
+
+    var user = await FindEmployeeAsync(userId);
+    if (user is null)
+        return EmployeeActionResult.Fail(NotFound, "Employee account was not found.");
+
+    if (await _users.IsInRoleAsync(user, Roles.Admin))
+        return EmployeeActionResult.Fail(Forbidden, "Administrator accounts cannot be deleted here.");
+
+    var actorId = actor.FindFirstValue(ClaimTypes.NameIdentifier);
+    if (!string.IsNullOrWhiteSpace(actorId) &&
+        string.Equals(actorId, user.Id, StringComparison.Ordinal))
+        return EmployeeActionResult.Fail(Forbidden, "You cannot delete your own account.");
+
+    var deleted = await _users.DeleteAsync(user);
+    if (!deleted.Succeeded)
+        return EmployeeActionResult.Fail(Validation, Describe(deleted));
+
+    return EmployeeActionResult.Ok(Deleted);
+}
     public async Task<EmployeeActionResult> SetActiveAsync(
         ClaimsPrincipal actor,
         string? userId,
