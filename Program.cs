@@ -48,6 +48,7 @@ builder.Services.AddScoped<EmployeeAccountService>();
 builder.Services.AddScoped<CategoryService>();
 builder.Services.AddScoped<ProductService>();
 builder.Services.AddScoped<InventoryService>();
+builder.Services.AddScoped<CustomerService>();
 builder.Services.AddCascadingAuthenticationState();
 
 builder.Services.AddRazorComponents()
