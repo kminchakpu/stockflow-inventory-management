@@ -15,6 +15,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<InventoryTransaction> InventoryTransactions => Set<InventoryTransaction>();
+    public DbSet<Customer> Customers => Set<Customer>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -75,6 +76,40 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
                 .WithMany()
                 .HasForeignKey(transaction => transaction.CreatedByUserId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<Customer>(entity =>
+        {
+            entity.Property(customer => customer.FirstName)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            entity.Property(customer => customer.LastName)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            entity.Property(customer => customer.Email)
+                .HasMaxLength(254);
+
+            entity.Property(customer => customer.PhoneNumber)
+                .IsRequired()
+                .HasMaxLength(30);
+
+            entity.Property(customer => customer.CompanyName)
+                .HasMaxLength(150);
+
+            entity.Property(customer => customer.Address)
+                .HasMaxLength(500);
+
+            entity.Property(customer => customer.Notes)
+                .HasMaxLength(1000);
+
+            entity.HasIndex(customer => customer.PhoneNumber)
+                .IsUnique();
+
+            entity.HasIndex(customer => customer.Email)
+                .IsUnique()
+                .HasFilter("\"Email\" IS NOT NULL");
         });
     }
 }

@@ -1,0 +1,423 @@
+
+@page "/admin/customers"
+@layout StockFlow.Components.Admin.AdminLayout
+@attribute [Authorize(Policy = StockFlowAuthorization.AdminPolicy)]
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using StockFlow.Components.Services
+@inject CustomerService CustomerService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>StockFlow | Customer Management</PageTitle>
+
+<div class="customers-page">
+    <section class="customers-welcome">
+        <div>
+            <span class="customers-eyebrow">BUSINESS MANAGEMENT</span>
+            <h2>Customer Management</h2>
+            <p>Manage your customer records and contact information.</p>
+        </div>
+        <button type="button" class="customer-primary-button" @onclick="ShowCreateForm">
+            <span>+</span> Add Customer
+        </button>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <div class="customer-error" role="alert">@_errorMessage</div>
+    }
+    @if (!string.IsNullOrWhiteSpace(_successMessage))
+    {
+        <div class="customer-success" role="status">@_successMessage</div>
+    }
+
+    @if (_showForm)
+    {
+        <section class="customer-form-panel">
+            <div class="customer-form-heading">
+                <div>
+                    <h3>@(_isEditing ? "Edit Customer" : "Register New Customer")</h3>
+                    <p>@(_isEditing ? "Update this customer's contact and business information." : "Enter the details of the customer you want to register.")</p>
+                </div>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_formError))
+            {
+                <div class="customer-error" role="alert">@_formError</div>
+            }
+            <EditForm Model="_customerInput" OnValidSubmit="SaveCustomerAsync">
+                <DataAnnotationsValidator />
+                <div class="customer-form-grid">
+                    <div class="customer-form-field">
+                        <label for="customer-first-name">First Name <span>*</span></label>
+                        <InputText id="customer-first-name" class="customer-form-input" @bind-Value="_customerInput.FirstName" placeholder="Enter first name" />
+                        <ValidationMessage For="@(() => _customerInput.FirstName)" />
+                    </div>
+                    <div class="customer-form-field">
+                        <label for="customer-last-name">Last Name <span>*</span></label>
+                        <InputText id="customer-last-name" class="customer-form-input" @bind-Value="_customerInput.LastName" placeholder="Enter last name" />
+                        <ValidationMessage For="@(() => _customerInput.LastName)" />
+                    </div>
+                    <div class="customer-form-field">
+                        <label for="customer-email">Email Address</label>
+                        <InputText id="customer-email" type="email" class="customer-form-input" @bind-Value="_customerInput.Email" placeholder="customer@example.com" />
+                        <ValidationMessage For="@(() => _customerInput.Email)" />
+                    </div>
+                    <div class="customer-form-field">
+                        <label for="customer-phone">Phone Number <span>*</span></label>
+                        <InputText id="customer-phone" class="customer-form-input" @bind-Value="_customerInput.PhoneNumber" placeholder="Enter phone number" />
+                        <ValidationMessage For="@(() => _customerInput.PhoneNumber)" />
+                    </div>
+                    <div class="customer-form-field">
+                        <label for="customer-company">Company Name</label>
+                        <InputText id="customer-company" class="customer-form-input" @bind-Value="_customerInput.CompanyName" placeholder="Enter company name (optional)" />
+                        <ValidationMessage For="@(() => _customerInput.CompanyName)" />
+                    </div>
+                    <div class="customer-form-field">
+                        <label for="customer-address">Address</label>
+                        <InputText id="customer-address" class="customer-form-input" @bind-Value="_customerInput.Address" placeholder="Enter customer address" />
+                        <ValidationMessage For="@(() => _customerInput.Address)" />
+                    </div>
+                    <div class="customer-form-field customer-notes-field">
+                        <label for="customer-notes">Additional Notes</label>
+                        <InputTextArea id="customer-notes" class="customer-form-input customer-notes-input" @bind-Value="_customerInput.Notes" placeholder="Add any relevant customer information..." />
+                        <ValidationMessage For="@(() => _customerInput.Notes)" />
+                    </div>
+                </div>
+                <div class="customer-form-actions">
+                    <button type="button" class="customer-secondary-button" @onclick="CancelForm" disabled="@_isSaving">Cancel</button>
+                    <button type="submit" class="customer-primary-button" disabled="@_isSaving">
+                        @(_isSaving ? "Saving..." : _isEditing ? "Save Changes" : "Register Customer")
+                    </button>
+                </div>
+            </EditForm>
+        </section>
+    }
+
+    <section class="customer-summary" aria-label="Customer summary">
+        <article class="customer-summary-card">
+            <span class="customer-summary-label">Total Customers</span>
+            <strong>@_customers.Count</strong>
+            <span>All registered customers</span>
+        </article>
+        <article class="customer-summary-card">
+            <span class="customer-summary-label">Active Customers</span>
+            <strong>@_customers.Count(customer => customer.IsActive)</strong>
+            <span>Currently active customers</span>
+        </article>
+        <article class="customer-summary-card">
+            <span class="customer-summary-label">Inactive Customers</span>
+            <strong>@_customers.Count(customer => !customer.IsActive)</strong>
+            <span>Currently inactive customers</span>
+        </article>
+    </section>
+
+    <section class="customer-panel">
+        <div class="customer-panel-heading">
+            <div>
+                <h3>All Customers</h3>
+                <p>View and manage your registered customers.</p>
+            </div>
+            <div class="customer-panel-controls">
+                <div class="customer-search">
+                    <label for="customer-search">Search</label>
+                    <input id="customer-search" type="search" @bind="_searchTerm" @bind:event="oninput" @bind:after="LoadCustomersAsync" placeholder="Name, email, phone..." />
+                </div>
+                <div class="customer-filter">
+                    <label for="customer-status">Status</label>
+                    <select id="customer-status" @bind="_statusFilter" @bind:after="ApplyStatusFilter">
+                        <option value="all">All customers</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        @if (_isLoading)
+        {
+            <div class="customer-empty-state">
+                <h4>Loading customers...</h4>
+                <p>Please wait while we retrieve your customer records.</p>
+            </div>
+        }
+        else if (_visibleCustomers.Count == 0)
+        {
+            <div class="customer-empty-state">
+                <div class="empty-customer-icon">♧</div>
+                <h4>@(_customers.Count == 0 ? "No customers have been registered" : "No matching customers")</h4>
+                <p>@(_customers.Count == 0 ? "Customer records will appear here after you register your first customer." : "Try adjusting your search or status filter.")</p>
+                @if (_customers.Count == 0)
+                {
+                    <button type="button" class="customer-secondary-button" @onclick="ShowCreateForm">Register First Customer</button>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="customer-table-wrapper">
+                <table class="customer-table">
+                    <thead>
+                        <tr>
+                            <th>Customer</th>
+                            <th>Contact Information</th>
+                            <th>Company</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var customer in _visibleCustomers)
+                        {
+                            <tr @key="customer.Id">
+                                <td>
+                                    <strong>@customer.FirstName @customer.LastName</strong>
+                                    <span class="customer-record-date">Added @customer.CreatedAt.ToLocalTime().ToString("dd MMM yyyy")</span>
+                                </td>
+                                <td>
+                                    <div class="customer-contact-details">
+                                        <span>@customer.PhoneNumber</span>
+                                        <span>@(string.IsNullOrWhiteSpace(customer.Email) ? "No email provided" : customer.Email)</span>
+                                    </div>
+                                </td>
+                                <td>@(string.IsNullOrWhiteSpace(customer.CompanyName) ? "—" : customer.CompanyName)</td>
+                                <td>
+                                    <span class="customer-status-badge @(customer.IsActive ? "active" : "inactive")">
+                                        @(customer.IsActive ? "Active" : "Inactive")
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="customer-row-actions">
+                                        <button type="button" class="customer-edit-button" @onclick="() => EditCustomer(customer)">Edit</button>
+                                        <button type="button" class="customer-toggle-button @(customer.IsActive ? "deactivate" : "activate")" @onclick="() => ToggleCustomerStatusAsync(customer)" disabled="@_isUpdatingStatus">
+                                            @(customer.IsActive ? "Deactivate" : "Activate")
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    private List<CustomerListItem> _customers = [];
+    private List<CustomerListItem> _visibleCustomers = [];
+    private CustomerInputModel _customerInput = new();
+    private string _statusFilter = "all";
+    private string _searchTerm = string.Empty;
+    private string? _errorMessage;
+    private string? _successMessage;
+    private string? _formError;
+    private bool _showForm;
+    private bool _isEditing;
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private bool _isUpdatingStatus;
+    private int? _editingCustomerId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await LoadCustomersAsync();
+        }
+        catch (Exception)
+        {
+            _errorMessage = "Unable to load customers. Please try again.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoadCustomersAsync()
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var customers = await CustomerService.ListAsync(
+            authenticationState.User,
+            includeInactive: true,
+            searchTerm: _searchTerm);
+        _customers = customers.ToList();
+        ApplyStatusFilter();
+    }
+
+    private void ApplyStatusFilter()
+    {
+        _visibleCustomers = _statusFilter switch
+        {
+            "active" => _customers.Where(customer => customer.IsActive).ToList(),
+            "inactive" => _customers.Where(customer => !customer.IsActive).ToList(),
+            _ => _customers.ToList()
+        };
+    }
+
+    private void ShowCreateForm()
+    {
+        _customerInput = new();
+        _editingCustomerId = null;
+        _isEditing = false;
+        _formError = null;
+        _errorMessage = null;
+        _successMessage = null;
+        _showForm = true;
+    }
+
+    private void EditCustomer(CustomerListItem customer)
+    {
+        _customerInput = new()
+        {
+            FirstName = customer.FirstName,
+            LastName = customer.LastName,
+            Email = customer.Email,
+            PhoneNumber = customer.PhoneNumber,
+            CompanyName = customer.CompanyName,
+            Address = customer.Address,
+            Notes = customer.Notes
+        };
+        _editingCustomerId = customer.Id;
+        _isEditing = true;
+        _formError = null;
+        _errorMessage = null;
+        _successMessage = null;
+        _showForm = true;
+    }
+
+    private void CancelForm()
+    {
+        _showForm = false;
+        _formError = null;
+        _customerInput = new();
+        _editingCustomerId = null;
+        _isEditing = false;
+    }
+
+    private async Task SaveCustomerAsync()
+    {
+        _isSaving = true;
+        _formError = null;
+        _successMessage = null;
+
+        try
+        {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+
+            var result = _isEditing
+                ? await CustomerService.UpdateAsync(
+                    authenticationState.User,
+                    _editingCustomerId!.Value,
+                    _customerInput.FirstName,
+                    _customerInput.LastName,
+                    _customerInput.Email,
+                    _customerInput.PhoneNumber,
+                    _customerInput.CompanyName,
+                    _customerInput.Address,
+                    _customerInput.Notes)
+                : await CustomerService.CreateAsync(
+                    authenticationState.User,
+                    _customerInput.FirstName,
+                    _customerInput.LastName,
+                    _customerInput.Email,
+                    _customerInput.PhoneNumber,
+                    _customerInput.CompanyName,
+                    _customerInput.Address,
+                    _customerInput.Notes);
+
+            if (!result.Succeeded)
+            {
+                _formError = result.Detail;
+                return;
+            }
+
+            var wasEditing = _isEditing;
+            _showForm = false;
+            _customerInput = new();
+            _editingCustomerId = null;
+            _isEditing = false;
+
+            await LoadCustomersAsync();
+
+            _successMessage = wasEditing
+                ? "Customer updated successfully."
+                : "Customer registered successfully.";
+        }
+        catch (Exception)
+        {
+            _formError = "An unexpected error occurred while saving the customer. Please try again.";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task ToggleCustomerStatusAsync(CustomerListItem customer)
+    {
+        _isUpdatingStatus = true;
+        _errorMessage = null;
+        _successMessage = null;
+
+        try
+        {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var newStatus = !customer.IsActive;
+
+            var result = await CustomerService.SetActiveAsync(
+                authenticationState.User,
+                customer.Id,
+                newStatus);
+
+            if (!result.Succeeded)
+            {
+                _errorMessage = result.Detail;
+                return;
+            }
+
+            await LoadCustomersAsync();
+
+            _successMessage = newStatus
+                ? $"'{customer.FirstName} {customer.LastName}' has been activated successfully."
+                : $"'{customer.FirstName} {customer.LastName}' has been deactivated successfully.";
+        }
+        catch (Exception)
+        {
+            _errorMessage = "An unexpected error occurred while updating the customer status.";
+        }
+        finally
+        {
+            _isUpdatingStatus = false;
+        }
+    }
+
+    private sealed class CustomerInputModel
+    {
+        [Required(ErrorMessage = "First name is required.")]
+        [StringLength(100, ErrorMessage = "First name cannot exceed 100 characters.")]
+        public string FirstName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Last name is required.")]
+        [StringLength(100, ErrorMessage = "Last name cannot exceed 100 characters.")]
+        public string LastName { get; set; } = string.Empty;
+
+        [EmailAddress(ErrorMessage = "Enter a valid email address.")]
+        [StringLength(254, ErrorMessage = "Email cannot exceed 254 characters.")]
+        public string? Email { get; set; }
+
+        [Required(ErrorMessage = "Phone number is required.")]
+        [StringLength(30, ErrorMessage = "Phone number cannot exceed 30 characters.")]
+        public string PhoneNumber { get; set; } = string.Empty;
+
+        [StringLength(150, ErrorMessage = "Company name cannot exceed 150 characters.")]
+        public string? CompanyName { get; set; }
+
+        [StringLength(500, ErrorMessage = "Address cannot exceed 500 characters.")]
+        public string? Address { get; set; }
+
+        [StringLength(1000, ErrorMessage = "Notes cannot exceed 1000 characters.")]
+        public string? Notes { get; set; }
+    }
+}
