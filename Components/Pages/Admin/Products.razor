@@ -1,0 +1,201 @@
+@page "/admin/products"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = StockFlow.Constants.Roles.Admin)]
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.EntityFrameworkCore
+@using StockFlow.Data
+@using StockFlow.Models
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
+@inject IJSRuntime JS
+
+<PageTitle>Products</PageTitle>
+
+<h1>Products</h1>
+
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
+
+<EditForm Model="@editModel" OnValidSubmit="@SaveAsync">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label for="product-name" class="form-label">Name</label>
+        <InputText id="product-name" class="form-control" @bind-Value="editModel.Name" />
+        <ValidationMessage For="@(() => editModel.Name)" />
+    </div>
+
+    <div class="mb-3">
+        <label for="product-sku" class="form-label">SKU</label>
+        <InputText id="product-sku" class="form-control" @bind-Value="editModel.Sku" />
+        <ValidationMessage For="@(() => editModel.Sku)" />
+    </div>
+
+    <div class="mb-3">
+        <label for="product-description" class="form-label">Description</label>
+        <InputTextArea id="product-description" class="form-control" @bind-Value="editModel.Description" />
+        <ValidationMessage For="@(() => editModel.Description)" />
+    </div>
+
+    <div class="mb-3">
+        <label for="product-price" class="form-label">Unit price</label>
+        <InputNumber id="product-price" class="form-control" @bind-Value="editModel.UnitPrice" />
+        <ValidationMessage For="@(() => editModel.UnitPrice)" />
+    </div>
+
+    <div class="mb-3">
+        <label for="product-stock" class="form-label">Stock quantity</label>
+        <InputNumber id="product-stock" class="form-control" @bind-Value="editModel.StockQuantity" />
+        <ValidationMessage For="@(() => editModel.StockQuantity)" />
+    </div>
+
+    <button class="btn btn-primary" type="submit">
+        @(isEditing ? "Save changes" : "Add product")
+    </button>
+    @if (isEditing)
+    {
+        <button class="btn btn-secondary ms-2" type="button" @onclick="CancelEdit">Cancel</button>
+    }
+</EditForm>
+
+<hr />
+
+@if (products.Count == 0)
+{
+    <p>No products yet.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr><th>Name</th><th>SKU</th><th>Unit price</th><th>In stock</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var product in products)
+                {
+                    <tr @key="product.ProductId">
+                        <td>@product.Name</td>
+                        <td>@product.Sku</td>
+                        <td>@product.UnitPrice.ToString("C")</td>
+                        <td>@product.StockQuantity</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" type="button" @onclick="() => Edit(product)">Edit</button>
+                            <button class="btn btn-sm btn-outline-danger ms-2" type="button" @onclick="() => DeleteAsync(product.ProductId)">Delete</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private List<Product> products = new();
+    private Product editModel = new();
+    private bool isEditing;
+    private string? errorMessage;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        products = await db.Products.AsNoTracking().OrderBy(product => product.Name).ToListAsync();
+    }
+
+    private async Task SaveAsync()
+    {
+        errorMessage = null;
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        if (isEditing)
+        {
+            var product = await db.Products.FindAsync(editModel.ProductId);
+            if (product is null)
+            {
+                errorMessage = "That product could not be found.";
+                await LoadAsync();
+                CancelEdit();
+                return;
+            }
+
+            product.Name = editModel.Name.Trim();
+            product.Sku = NormalizeSku(editModel.Sku);
+            product.Description = CleanDescription(editModel.Description);
+            product.UnitPrice = editModel.UnitPrice;
+            product.StockQuantity = editModel.StockQuantity;
+            product.UpdatedAt = DateTime.UtcNow;
+        }
+        else
+        {
+            db.Products.Add(new Product
+            {
+                Name = editModel.Name.Trim(),
+                Sku = NormalizeSku(editModel.Sku),
+                Description = CleanDescription(editModel.Description),
+                UnitPrice = editModel.UnitPrice,
+                StockQuantity = editModel.StockQuantity
+            });
+        }
+
+        try
+        {
+            await db.SaveChangesAsync();
+            CancelEdit();
+            await LoadAsync();
+        }
+        catch (DbUpdateException)
+        {
+            errorMessage = "The SKU may already be in use. Check it and try again.";
+        }
+    }
+
+    private void Edit(Product product)
+    {
+        errorMessage = null;
+        isEditing = true;
+        editModel = new Product
+        {
+            ProductId = product.ProductId,
+            Name = product.Name,
+            Sku = product.Sku,
+            Description = product.Description,
+            UnitPrice = product.UnitPrice,
+            StockQuantity = product.StockQuantity,
+            CreatedAt = product.CreatedAt,
+            UpdatedAt = product.UpdatedAt
+        };
+    }
+
+    private async Task DeleteAsync(int productId)
+    {
+        errorMessage = null;
+        if (!await JS.InvokeAsync<bool>("confirm", "Delete this product?")) return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var product = await db.Products.FindAsync(productId);
+        if (product is null)
+        {
+            errorMessage = "That product could not be found.";
+            await LoadAsync();
+            return;
+        }
+
+        db.Products.Remove(product);
+        await db.SaveChangesAsync();
+        await LoadAsync();
+    }
+
+    private void CancelEdit()
+    {
+        editModel = new Product();
+        isEditing = false;
+        errorMessage = null;
+    }
+
+    private static string NormalizeSku(string sku) => sku.Trim().ToUpperInvariant();
+    private static string? CleanDescription(string? description) =>
+        string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+}
