@@ -1,0 +1,36 @@
+@page "/employee-access"
+@attribute [Authorize(Policy = StockFlowAuthorization.EmployeePolicy)]
+
+<PageTitle>StockFlow | Employee Access</PageTitle>
+
+<div class="dashboard-page">
+    <div class="page-intro">
+        <div>
+            <span class="eyebrow">Employee access</span>
+            <h1>Sales and Customer Operations</h1>
+        </div>
+    </div>
+
+    <div class="stats-grid">
+        <article class="stat-card accent-blue">
+            <span class="stat-label">Products</span>
+            <strong>View</strong>
+            <small>Search and review stock availability</small>
+        </article>
+        <article class="stat-card accent-green">
+            <span class="stat-label">Customers</span>
+            <strong>Manage</strong>
+            <small>Create and update customer records</small>
+        </article>
+        <article class="stat-card accent-purple">
+            <span class="stat-label">Sales</span>
+            <strong>Process</strong>
+            <small>Complete sales and order handling</small>
+        </article>
+        <article class="stat-card accent-orange">
+            <span class="stat-label">History</span>
+            <strong>View</strong>
+            <small>Review permitted sales records</small>
+        </article>
+    </div>
+</div>
