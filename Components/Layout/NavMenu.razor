@@ -1,4 +1,7 @@
-﻿<div class="nav-shell">
+
+@using Microsoft.AspNetCore.Components.Authorization
+
+<div class="nav-shell">
     <div class="nav-identity">
         <div class="brand-badge">SF</div>
         <div>
@@ -20,6 +23,9 @@
                 <NavLink href="/admin/employees" class="nav-item" Match="NavLinkMatch.All">
                     <span>Employees</span>
                 </NavLink>
+                <NavLink href="/admin/customers" class="nav-item">
+                    <span>Customers</span>
+                </NavLink>
             </Authorized>
         </AuthorizeView>
 
@@ -36,9 +42,6 @@
         </NavLink>
         <NavLink href="/dashboard" class="nav-item">
             <span>Sales</span>
-        </NavLink>
-        <NavLink href="/dashboard" class="nav-item">
-            <span>Customers</span>
         </NavLink>
         <NavLink href="/dashboard" class="nav-item">
             <span>Reports</span>
