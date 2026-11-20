@@ -1,5 +1,9 @@
-﻿
+
 @page "/"
+@attribute [AllowAnonymous]
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager Navigation
 <PageTitle>StockFlow | Inventory and Sales Management</PageTitle>
 <main class="home-page">
     <section class="hero-section">
@@ -15,7 +19,7 @@
                     from one simple workspace. StockFlow helps your retail business stay organized.
                 </p>
                 <div class="hero-actions">
-                    <a href="/Account/Login" class="primary-button">Get started <span aria-hidden="true">→</span></a>
+                    <a href="/login" class="primary-button">Get started <span aria-hidden="true">→</span></a>
                     <a href="#features" class="secondary-button">Explore features</a>
                 </div>
                 <div class="hero-trust">
@@ -157,7 +161,7 @@
                 <span class="section-eyebrow">A SIMPLE WORKFLOW</span>
                 <h2>From inventory to completed sale</h2>
                 <p>StockFlow connects sales activity with inventory records to help keep your business information accurate.</p>
-                <a href="/Account/Login" class="workflow-link">Access StockFlow <span aria-hidden="true">→</span></a>
+                <a href="/login" class="workflow-link">Access StockFlow <span aria-hidden="true">→</span></a>
             </div>
             <div class="workflow-steps">
                 <article class="workflow-step">
@@ -228,7 +232,23 @@
                 <h2>Bring your inventory and sales together.</h2>
                 <p>Get started with a more organized way to manage your retail business.</p>
             </div>
-            <a href="/Account/Login" class="cta-button">Sign in to StockFlow <span aria-hidden="true">→</span></a>
+            <a href="/login" class="cta-button">Sign in to StockFlow <span aria-hidden="true">→</span></a>
         </div>
     </section>
 </main>
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationState { get; set; }
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthenticationState is not null)
+        {
+            var state = await AuthenticationState;
+            if (state.User.Identity?.IsAuthenticated == true)
+            {
+                var destination = StockFlowAuthorization.HomeFor(state.User);
+                Navigation.NavigateTo(destination, forceLoad: true);
+            }
+        }
+    }
+}
