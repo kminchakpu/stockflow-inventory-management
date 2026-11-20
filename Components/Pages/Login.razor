@@ -1,0 +1,129 @@
+@page "/login"
+@attribute [AllowAnonymous]
+@inject NavigationManager Navigation
+
+<PageTitle>StockFlow | Login</PageTitle>
+
+<div class="auth-page">
+    <div class="auth-card">
+        <div class="auth-brand-panel">
+            <div class="brand-block">
+                <div class="brand-mark">SF</div>
+                <div>
+                    <p class="brand-label">Inventory Suite</p>
+                    <h2>StockFlow</h2>
+                </div>
+            </div>
+
+            <div class="hero-copy">
+                <span class="eyebrow">Operations control</span>
+                <h1>Track stock, sales, and service from one command center.</h1>
+                <p>Designed for retail teams that need faster decisions, accurate inventory, and a smoother daily workflow.</p>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <strong>246</strong>
+                    <span>Products</span>
+                </div>
+                <div class="stat-item">
+                    <strong>18</strong>
+                    <span>Stores</span>
+                </div>
+                <div class="stat-item">
+                    <strong>99.2%</strong>
+                    <span>Stock accuracy</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="auth-form-panel">
+            <div class="auth-header">
+                <span class="eyebrow">Welcome back</span>
+                <h3>Sign in to continue</h3>
+            </div>
+
+            <form method="post" action="/account/login">
+                <AntiforgeryToken />
+                @if (!string.IsNullOrWhiteSpace(ReturnUrl))
+                {
+                    <input type="hidden" name="returnUrl" value="@ReturnUrl" />
+                }
+
+                @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+                {
+                    <div class="alert-danger">@ErrorMessage</div>
+                }
+
+                <div class="form-field">
+                    <label for="email">Email address</label>
+                    <input id="email" name="email" type="email" class="form-control" placeholder="name@company.com" autocomplete="username" required />
+                </div>
+
+                <div class="form-field">
+                    <label for="password">Password</label>
+                    <input id="password" name="password" type="password" class="form-control" placeholder="Enter your password" autocomplete="current-password" required />
+                </div>
+
+                <div class="form-row">
+                    <label class="remember-me" for="rememberMe">
+                        <input id="rememberMe" name="rememberMe" type="checkbox" value="true" />
+                        <span>Keep me signed in</span>
+                    </label>
+                    <a href="#" class="text-link">Forgot password?</a>
+                </div>
+
+                <button type="submit" class="primary-button">Sign in</button>
+            </form>
+
+            <div class="demo-box">
+                <h4>Demo accounts</h4>
+                <div class="demo-row">
+                    <span>Admin</span>
+                    <strong>admin@stockflow.local</strong>
+                    <em>Admin@123</em>
+                </div>
+                <div class="demo-row">
+                    <span>Employee</span>
+                    <strong>employee@stockflow.local</strong>
+                    <em>Employee@123</em>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationState { get; set; }
+
+    [SupplyParameterFromQuery(Name = "error")]
+    private string? ErrorCode { get; set; }
+
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    private string? ReturnUrl { get; set; }
+
+    private string? ErrorMessage => ErrorCode switch
+    {
+        "missing" => "Enter your email and password.",
+        "email" => "Enter a valid email address.",
+        "locked" => "This account is locked. Try again later.",
+        "disabled" => "This account has been disabled. Contact an administrator.",
+        "invalid" => "Invalid email or password.",
+        _ => null
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthenticationState is null)
+        {
+            return;
+        }
+
+        var state = await AuthenticationState;
+        if (state.User.Identity?.IsAuthenticated == true)
+        {
+            Navigation.NavigateTo(StockFlowAuthorization.HomeFor(state.User), forceLoad: true);
+        }
+    }
+}
