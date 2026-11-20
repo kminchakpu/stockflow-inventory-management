@@ -7,11 +7,13 @@ namespace StockFlow.Data;
 
 public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 {
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+    public ApplicationDbContext(
+        DbContextOptions<ApplicationDbContext> options)
         : base(options)
     {
     }
 
+    public DbSet<Category> Categories => Set<Category>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<Customer> Customers => Set<Customer>();
 

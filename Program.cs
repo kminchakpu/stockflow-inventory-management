@@ -8,7 +8,10 @@ using StockFlow.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+builder.Configuration.AddJsonFile(
+    "appsettings.Local.json",
+    optional: true,
+    reloadOnChange: true);
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 if (string.IsNullOrWhiteSpace(connectionString))
@@ -17,7 +20,7 @@ if (string.IsNullOrWhiteSpace(connectionString))
         "Set ConnectionStrings:DefaultConnection in appsettings.Local.json before starting StockFlow.");
 }
 
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
+builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
     options.UseNpgsql(connectionString));
 
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
@@ -70,7 +73,9 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+app.UseStatusCodePagesWithReExecute(
+    "/not-found",
+    createScopeForStatusCodePages: true);
 
 app.UseHttpsRedirection();
 
