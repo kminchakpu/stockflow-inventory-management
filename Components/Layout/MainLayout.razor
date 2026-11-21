@@ -1,10 +1,19 @@
-﻿
+
 @inherits LayoutComponentBase
 <div class="app-shell">
-    <Header />
-    <div class="main-content">
-        @Body
+    <AuthorizeView>
+        <Authorized>
+            <aside class="app-sidebar">
+                <NavMenu />
+            </aside>
+        </Authorized>
+    </AuthorizeView>
+    <div class="app-main">
+        <Header />
+        <main class="content-shell">
+            @Body
+        </main>
+        <Footer />
     </div>
-    <Footer />
 </div>
 
