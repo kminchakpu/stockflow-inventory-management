@@ -1,133 +1,453 @@
+
 @page "/admin/employees"
+@layout StockFlow.Components.Admin.AdminLayout
 @attribute [Authorize(Policy = StockFlowAuthorization.AdminPolicy)]
-@inject EmployeeAccountService EmployeeAccounts
-
-<PageTitle>StockFlow | Employees</PageTitle>
-
-<div class="dashboard-page">
-    <div class="page-intro">
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using StockFlow.Components.Services
+@inject EmployeeAccountService EmployeeAccountService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+<PageTitle>StockFlow | Employee Management</PageTitle>
+<div class="employees-page">
+    <section class="employees-welcome">
         <div>
-            <span class="eyebrow">Admin access</span>
-            <h1>Employee accounts</h1>
+            <span class="employees-eyebrow">BUSINESS MANAGEMENT</span>
+            <h2>Employee Management</h2>
+            <p>Create and manage employee accounts and access to your StockFlow workspace.</p>
         </div>
-    </div>
-
-    @if (!string.IsNullOrWhiteSpace(NoticeMessage))
-    {
-        <div class="alert-danger" style="@(IsSuccess ? "background:#e8f6ee;color:#146c43;border-color:#b7e4c7;" : null)">@NoticeMessage</div>
-    }
-
-    <section class="panel">
-        <div class="panel-header">
-            <h3>Create employee</h3>
-        </div>
-        <form method="post" action="/admin/employees">
-            <AntiforgeryToken />
-            <div class="form-field">
-                <label for="new-name">Name</label>
-                <input id="new-name" name="displayName" class="form-control" required />
-            </div>
-            <div class="form-field">
-                <label for="new-email">Email</label>
-                <input id="new-email" name="email" type="email" class="form-control" required />
-            </div>
-            <div class="form-field">
-                <label for="new-password">Temporary password</label>
-                <input id="new-password" name="password" type="password" class="form-control" required />
-            </div>
-            <button type="submit" class="primary-button">Create employee</button>
-        </form>
+        <button type="button" class="employee-primary-button" @onclick="ShowCreateForm">
+            <span>+</span> Add Employee
+        </button>
     </section>
-
-    <section class="panel">
-        <div class="panel-header">
-            <h3>Current employees</h3>
+    @if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <div class="employee-error" role="alert">@_errorMessage</div>
+    }
+    @if (!string.IsNullOrWhiteSpace(_successMessage))
+    {
+        <div class="employee-success" role="status">@_successMessage</div>
+    }
+    @if (_showForm)
+    {
+        <section class="employee-form-panel">
+            <div class="employee-form-heading">
+                <div>
+                    <h3>@(_isEditing ? "Edit Employee" : "Create New Employee")</h3>
+                    <p>@(_isEditing ? "Update employee information or change their password." : "Enter the details to create a new employee account.")</p>
+                </div>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_formError))
+            {
+                <div class="employee-error" role="alert">@_formError</div>
+            }
+            <EditForm Model="_employeeInput" OnValidSubmit="SaveEmployeeAsync">
+                <DataAnnotationsValidator />
+                <div class="employee-form-grid">
+                    <div class="employee-form-field">
+                        <label for="employee-first-name">First Name <span>*</span></label>
+                        <InputText id="employee-first-name" class="employee-form-input" @bind-Value="_employeeInput.FirstName" placeholder="Enter first name" />
+                        <ValidationMessage For="@(() => _employeeInput.FirstName)" />
+                    </div>
+                    <div class="employee-form-field">
+                        <label for="employee-last-name">Last Name <span>*</span></label>
+                        <InputText id="employee-last-name" class="employee-form-input" @bind-Value="_employeeInput.LastName" placeholder="Enter last name" />
+                        <ValidationMessage For="@(() => _employeeInput.LastName)" />
+                    </div>
+                    <div class="employee-form-field">
+                        <label for="employee-email">Email Address <span>*</span></label>
+                        <InputText id="employee-email" type="email" class="employee-form-input" @bind-Value="_employeeInput.Email" placeholder="employee@example.com" />
+                        <ValidationMessage For="@(() => _employeeInput.Email)" />
+                    </div>
+                    <div class="employee-form-field">
+                        <label for="employee-password">Password @if (!_isEditing) { <span>*</span> }</label>
+                        <InputText id="employee-password" type="password" class="employee-form-input" @bind-Value="_employeeInput.Password" placeholder="@(_isEditing ? "Leave blank to keep current password" : "Enter a secure password")" autocomplete="new-password" />
+                        <ValidationMessage For="@(() => _employeeInput.Password)" />
+                        @if (_isEditing)
+                        {
+                            <small>Leave blank if you do not want to change the password.</small>
+                        }
+                        else
+                        {
+                            <small>At least 12 characters with uppercase, lowercase, number, and special character.</small>
+                        }
+                    </div>
+                </div>
+                <div class="employee-form-actions">
+                    <button type="button" class="employee-secondary-button" @onclick="CancelForm" disabled="@_isSaving">Cancel</button>
+                    <button type="submit" class="employee-primary-button" disabled="@_isSaving">
+                        @(_isSaving ? "Saving..." : _isEditing ? "Save Changes" : "Create Employee")
+                    </button>
+                </div>
+            </EditForm>
+        </section>
+    }
+    @if (_employeeToDelete is not null)
+    {
+        <section class="employee-delete-confirmation" role="alert">
+            <div>
+                <h3>Delete Employee Account?</h3>
+                <p>Are you sure you want to permanently delete <strong>@_employeeToDelete.FirstName @_employeeToDelete.LastName</strong> (@_employeeToDelete.Email)? This action cannot be undone.</p>
+            </div>
+            <div class="employee-delete-actions">
+                <button type="button" class="employee-secondary-button" @onclick="CancelDelete" disabled="@_isDeleting">Cancel</button>
+                <button type="button" class="employee-delete-button" @onclick="DeleteEmployeeAsync" disabled="@_isDeleting">
+                    @(_isDeleting ? "Deleting..." : "Confirm Delete")
+                </button>
+            </div>
+        </section>
+    }
+    <section class="employee-summary" aria-label="Employee summary">
+        <article class="employee-summary-card">
+            <span class="employee-summary-label">Total Employees</span>
+            <strong>@_employees.Count</strong>
+            <span>All registered employee accounts</span>
+        </article>
+        <article class="employee-summary-card">
+            <span class="employee-summary-label">Active Employees</span>
+            <strong>@_employees.Count(employee => employee.IsActive)</strong>
+            <span>Accounts currently enabled</span>
+        </article>
+        <article class="employee-summary-card">
+            <span class="employee-summary-label">Inactive Employees</span>
+            <strong>@_employees.Count(employee => !employee.IsActive)</strong>
+            <span>Accounts currently disabled</span>
+        </article>
+    </section>
+    <section class="employee-panel">
+        <div class="employee-panel-heading">
+            <div>
+                <h3>All Employees</h3>
+                <p>View and manage employee accounts and their access status.</p>
+            </div>
+            <div class="employee-toolbar">
+                <div class="employee-search">
+                    <label for="employee-search">Search</label>
+                    <input id="employee-search" type="search" @bind="_searchTerm" @bind:event="oninput" @bind:after="ApplyFilters" placeholder="Name or email..." />
+                </div>
+                <div class="employee-filter">
+                    <label for="employee-status">Status</label>
+                    <select id="employee-status" @bind="_statusFilter" @bind:after="ApplyFilters">
+                        <option value="all">All employees</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </div>
+            </div>
         </div>
-        @if (employees.Count == 0)
+        @if (_isLoading)
         {
-            <p>No employee accounts yet.</p>
+            <div class="employee-empty-state">
+                <h4>Loading employees...</h4>
+                <p>Please wait while we retrieve employee accounts.</p>
+            </div>
+        }
+        else if (_visibleEmployees.Count == 0)
+        {
+            <div class="employee-empty-state">
+                <div class="employee-empty-icon">♙</div>
+                <h4>@(_employees.Count == 0 ? "No employees have been created" : "No matching employees")</h4>
+                <p>@(_employees.Count == 0 ? "Employee accounts will appear here after you create your first employee." : "Try changing your search or status filter.")</p>
+                @if (_employees.Count == 0)
+                {
+                    <button type="button" class="employee-secondary-button" @onclick="ShowCreateForm">Create First Employee</button>
+                }
+            </div>
         }
         else
         {
-            @foreach (var employee in employees)
-            {
-                <article class="list-items" style="display:block;padding:16px 0;border-bottom:1px solid #e6e8ee;">
-                    <strong>@employee.DisplayName</strong>
-                    <div>@employee.Email</div>
-                    <small>@(employee.IsActive ? "Active" : "Disabled") · @AppRoles.Employee</small>
-
-                    <form method="post" action="/admin/employees/update" style="margin-top:12px;">
-                        <AntiforgeryToken />
-                        <input type="hidden" name="userId" value="@employee.Id" />
-                        <div class="form-field">
-                            <label>Name</label>
-                            <input name="displayName" class="form-control" value="@employee.DisplayName" required />
-                        </div>
-                        <div class="form-field">
-                            <label>Email</label>
-                            <input name="email" type="email" class="form-control" value="@employee.Email" required />
-                        </div>
-                        <div class="form-field">
-                            <label>New password</label>
-                            <input name="password" type="password" class="form-control" placeholder="Leave blank to keep the current password" />
-                        </div>
-                        <button type="submit" class="secondary-button">Save changes</button>
-                    </form>
-
-                    <form method="post" action="/admin/employees/active" style="margin-top:8px;">
-                        <AntiforgeryToken />
-                        <input type="hidden" name="userId" value="@employee.Id" />
-                        <input type="hidden" name="isActive" value="@(!employee.IsActive)" />
-                        <button type="submit" class="secondary-button">@(employee.IsActive ? "Disable account" : "Enable account")</button>
-                    </form>
-
-                    <form method="post" action="/admin/employees/delete" style="margin-top:8px;">
-                        <AntiforgeryToken />
-                        <input type="hidden" name="userId" value="@employee.Id" />
-                        <button type="submit" class="secondary-button">Remove account</button>
-                    </form>
-                </article>
-            }
+            <div class="employee-table-wrapper">
+                <table class="employee-table">
+                    <thead>
+                        <tr>
+                            <th>Employee</th>
+                            <th>Email Address</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var employee in _visibleEmployees)
+                        {
+                            <tr @key="employee.Id">
+                                <td>
+                                    <div class="employee-identity">
+                                        <span class="employee-avatar">@GetInitials(employee)</span>
+                                        <strong>@employee.FirstName @employee.LastName</strong>
+                                    </div>
+                                </td>
+                                <td>@employee.Email</td>
+                                <td>
+                                    <span class="employee-status-badge @(employee.IsActive ? "active" : "inactive")">
+                                        @(employee.IsActive ? "Active" : "Inactive")
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="employee-row-actions">
+                                        <button type="button" class="employee-edit-button" @onclick="() => EditEmployee(employee)">Edit</button>
+                                        <button type="button" class="employee-toggle-button @(employee.IsActive ? "deactivate" : "activate")" @onclick="() => ToggleEmployeeStatusAsync(employee)" disabled="@_isUpdatingStatus">
+                                            @(employee.IsActive ? "Deactivate" : "Activate")
+                                        </button>
+                                        <button type="button" class="employee-delete-button" @onclick="() => RequestDelete(employee)" disabled="@_isDeleting">Delete</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         }
     </section>
 </div>
-
 @code {
-    [CascadingParameter]
-    private HttpContext? HttpContext { get; set; }
-
-    [SupplyParameterFromQuery(Name = "notice")]
-    private string? Notice { get; set; }
-
-    [SupplyParameterFromQuery(Name = "detail")]
-    private string? Detail { get; set; }
-
-    private IReadOnlyList<EmployeeListItem> employees = [];
-
-    private bool IsSuccess => Notice is EmployeeAccountService.Created
-        or EmployeeAccountService.Updated
-        or EmployeeAccountService.Disabled
-        or EmployeeAccountService.Enabled
-        or EmployeeAccountService.Deleted;
-
-    private string? NoticeMessage => Notice switch
-    {
-        EmployeeAccountService.Created => "Employee account created and assigned the Employee role.",
-        EmployeeAccountService.Updated => "Employee account updated.",
-        EmployeeAccountService.Disabled => "Employee account disabled.",
-        EmployeeAccountService.Enabled => "Employee account enabled.",
-        EmployeeAccountService.Deleted => "Employee account removed.",
-        EmployeeAccountService.Validation or EmployeeAccountService.Forbidden or EmployeeAccountService.NotFound => Detail,
-        _ => null
-    };
-
+    private List<EmployeeListItem> _employees = [];
+    private List<EmployeeListItem> _visibleEmployees = [];
+    private EmployeeInputModel _employeeInput = new();
+    private EmployeeListItem? _employeeToDelete;
+    private string _statusFilter = "all";
+    private string _searchTerm = string.Empty;
+    private string? _errorMessage;
+    private string? _successMessage;
+    private string? _formError;
+    private bool _showForm;
+    private bool _isEditing;
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private bool _isUpdatingStatus;
+    private bool _isDeleting;
+    private string? _editingEmployeeId;
     protected override async Task OnInitializedAsync()
     {
-        if (HttpContext?.User is null)
+        try
         {
-            return;
+            await LoadEmployeesAsync();
         }
-
-        employees = await EmployeeAccounts.ListAsync(HttpContext.User);
+        catch (Exception)
+        {
+            _errorMessage = "Unable to load employees. Please try again.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+    private async Task LoadEmployeesAsync()
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var employees = await EmployeeAccountService.ListAsync(authenticationState.User);
+        _employees = employees.ToList();
+        ApplyFilters();
+    }
+    private void ApplyFilters()
+    {
+        var search = _searchTerm.Trim();
+        _visibleEmployees = _employees
+            .Where(employee => _statusFilter switch
+            {
+                "active" => employee.IsActive,
+                "inactive" => !employee.IsActive,
+                _ => true
+            })
+            .Where(employee =>
+                string.IsNullOrWhiteSpace(search) ||
+                employee.FirstName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                employee.LastName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                employee.Email.Contains(search, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+    private void ShowCreateForm()
+    {
+        _employeeInput = new() { RequirePassword = true };
+        _editingEmployeeId = null;
+        _isEditing = false;
+        _formError = null;
+        _errorMessage = null;
+        _successMessage = null;
+        _employeeToDelete = null;
+        _showForm = true;
+    }
+    private void EditEmployee(EmployeeListItem employee)
+    {
+        _employeeInput = new()
+        {
+            FirstName = employee.FirstName,
+            LastName = employee.LastName,
+            Email = employee.Email,
+            RequirePassword = false
+        };
+        _editingEmployeeId = employee.Id;
+        _isEditing = true;
+        _formError = null;
+        _errorMessage = null;
+        _successMessage = null;
+        _employeeToDelete = null;
+        _showForm = true;
+    }
+    private void CancelForm()
+    {
+        _showForm = false;
+        _formError = null;
+        _employeeInput = new();
+        _editingEmployeeId = null;
+        _isEditing = false;
+    }
+    private async Task SaveEmployeeAsync()
+    {
+        _isSaving = true;
+        _formError = null;
+        _successMessage = null;
+        try
+        {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var result = _isEditing
+                ? await EmployeeAccountService.UpdateAsync(
+                    authenticationState.User,
+                    _editingEmployeeId,
+                    _employeeInput.FirstName,
+                    _employeeInput.LastName,
+                    _employeeInput.Email,
+                    _employeeInput.Password)
+                : await EmployeeAccountService.CreateAsync(
+                    authenticationState.User,
+                    _employeeInput.FirstName,
+                    _employeeInput.LastName,
+                    _employeeInput.Email,
+                    _employeeInput.Password);
+            if (!result.Succeeded)
+            {
+                _formError = result.Detail;
+                return;
+            }
+            var wasEditing = _isEditing;
+            _showForm = false;
+            _employeeInput = new();
+            _editingEmployeeId = null;
+            _isEditing = false;
+            await LoadEmployeesAsync();
+            _successMessage = wasEditing
+                ? "Employee account updated successfully."
+                : "Employee account created successfully.";
+        }
+        catch (Exception)
+        {
+            _formError = "An unexpected error occurred while saving the employee account. Please try again.";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+    private async Task ToggleEmployeeStatusAsync(EmployeeListItem employee)
+    {
+        _isUpdatingStatus = true;
+        _errorMessage = null;
+        _successMessage = null;
+        try
+        {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var newStatus = !employee.IsActive;
+            var result = await EmployeeAccountService.SetActiveAsync(
+                authenticationState.User,
+                employee.Id,
+                newStatus);
+            if (!result.Succeeded)
+            {
+                _errorMessage = result.Detail;
+                return;
+            }
+            await LoadEmployeesAsync();
+            _successMessage = newStatus
+                ? $"{employee.FirstName} {employee.LastName} has been activated successfully."
+                : $"{employee.FirstName} {employee.LastName} has been deactivated successfully.";
+        }
+        catch (Exception)
+        {
+            _errorMessage = "An unexpected error occurred while updating the employee status.";
+        }
+        finally
+        {
+            _isUpdatingStatus = false;
+        }
+    }
+        private void RequestDelete(EmployeeListItem employee)
+    {
+        _employeeToDelete = employee;
+        _showForm = false;
+        _errorMessage = null;
+        _successMessage = $"Delete button clicked for {employee.FirstName} {employee.LastName}.";
+    }
+    private void CancelDelete()
+    {
+        _employeeToDelete = null;
+    }
+    private async Task DeleteEmployeeAsync()
+    {
+        if (_employeeToDelete is null)
+            return;
+        _isDeleting = true;
+        _errorMessage = null;
+        _successMessage = null;
+        try
+        {
+            var employee = _employeeToDelete;
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var result = await EmployeeAccountService.DeleteAsync(
+                authenticationState.User,
+                employee.Id);
+            if (!result.Succeeded)
+            {
+                _errorMessage = result.Detail;
+                _employeeToDelete = null;
+                return;
+            }
+            _employeeToDelete = null;
+            await LoadEmployeesAsync();
+            _successMessage = $"{employee.FirstName} {employee.LastName} has been deleted successfully.";
+        }
+        catch (Exception)
+        {
+            _errorMessage = "An unexpected error occurred while deleting the employee account.";
+            _employeeToDelete = null;
+        }
+        finally
+        {
+            _isDeleting = false;
+        }
+    }
+    private static string GetInitials(EmployeeListItem employee)
+    {
+        var first = employee.FirstName.FirstOrDefault();
+        var last = employee.LastName.FirstOrDefault();
+        return $"{first}{last}".ToUpperInvariant();
+    }
+    private sealed class EmployeeInputModel : IValidatableObject
+    {
+        [Required(ErrorMessage = "First name is required.")]
+        [StringLength(100, ErrorMessage = "First name cannot exceed 100 characters.")]
+        public string FirstName { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Last name is required.")]
+        [StringLength(100, ErrorMessage = "Last name cannot exceed 100 characters.")]
+        public string LastName { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Email address is required.")]
+        [EmailAddress(ErrorMessage = "Enter a valid email address.")]
+        [StringLength(256, ErrorMessage = "Email address cannot exceed 256 characters.")]
+        public string Email { get; set; } = string.Empty;
+        public string? Password { get; set; }
+        public bool RequirePassword { get; set; }
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            if (RequirePassword && string.IsNullOrWhiteSpace(Password))
+            {
+                yield return new ValidationResult(
+                    "Password is required when creating an employee.",
+                    [nameof(Password)]);
+            }
+            else if (!string.IsNullOrWhiteSpace(Password) && Password.Length < 12)
+            {
+                yield return new ValidationResult(
+                    "Password must contain at least 12 characters.",
+                    [nameof(Password)]);
+            }
+        }
     }
 }

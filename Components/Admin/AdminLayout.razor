@@ -1,0 +1,98 @@
+
+@inherits LayoutComponentBase
+<div class="admin-shell">
+    <aside class="admin-sidebar">
+        <a href="/admin" class="admin-brand" aria-label="StockFlow Admin Dashboard">
+            <span class="admin-brand-mark">SF</span>
+            <span class="admin-brand-name">Stock<span>Flow</span></span>
+        </a>
+        <div class="sidebar-section">
+            <span class="sidebar-label">WORKSPACE</span>
+            <nav class="admin-navigation" aria-label="Admin navigation">
+                <a href="/admin" class="admin-nav-link active" aria-current="page">
+                    <span class="nav-icon">▦</span>
+                    <span>Dashboard</span>
+                </a>
+            </nav>
+        </div>
+        <div class="sidebar-section">
+            <span class="sidebar-label">INVENTORY MANAGEMENT</span>
+            <nav class="admin-navigation" aria-label="Inventory management">
+                <NavLink href="/admin/products" class="admin-nav-link" ActiveClass="active">
+                    <span class="nav-icon">▤</span>
+                    <span>Products</span>
+                </NavLink>
+                <NavLink href="/admin/categories" class="admin-nav-link" ActiveClass="active">
+                    <span class="nav-icon">▧</span>
+                    <span>Categories</span>
+                </NavLink>
+                <NavLink href="/admin/inventory" class="admin-nav-link" ActiveClass="active">
+                    <span class="nav-icon">▥</span>
+                    <span>Inventory</span>
+                </NavLink>
+            </nav>
+        </div>
+        <div class="sidebar-section">
+            <span class="sidebar-label">BUSINESS MANAGEMENT</span>
+            <nav class="admin-navigation" aria-label="Business management">
+                <span class="admin-nav-link disabled" aria-disabled="true">
+                    <NavLink href="/admin/employees" class="admin-nav-link" ActiveClass="active">
+                        <span class="nav-icon">♙</span>
+                        <span>Employees</span>
+                    </NavLink>
+                </span>
+                <span class="admin-nav-link disabled" aria-disabled="true">
+                    <NavLink href="/admin/customers" class="admin-nav-link" ActiveClass="active">
+                        <span class="nav-icon">♧</span>
+                        <span>Customers</span>
+                    </NavLink>
+                </span>
+                <span class="admin-nav-link disabled" aria-disabled="true">
+                    <span class="nav-icon">▣</span>
+                    <span>Sales</span>
+                    <span class="coming-soon">Soon</span>
+                </span>
+                <span class="admin-nav-link disabled" aria-disabled="true">
+                    <span class="nav-icon">▥</span>
+                    <span>Reports</span>
+                    <span class="coming-soon">Soon</span>
+                </span>
+            </nav>
+        </div>
+        <div class="sidebar-bottom">
+            <div class="sidebar-status">
+                <span class="status-indicator"></span>
+                <span>System workspace</span>
+            </div>
+            <form method="post" action="/account/logout">
+                <AntiforgeryToken />
+                <button type="submit" class="sidebar-signout">
+                    <span class="nav-icon">↪</span>
+                    <span>Sign out</span>
+                </button>
+            </form>
+        </div>
+    </aside>
+    <div class="admin-content">
+        <header class="admin-topbar">
+            <div class="topbar-heading">
+                <span class="topbar-eyebrow">STOCKFLOW ADMINISTRATION</span>
+                <h1>Admin Workspace</h1>
+            </div>
+            <div class="admin-profile">
+                <div class="profile-avatar">A</div>
+                <div class="profile-details">
+                    <strong>Administrator</strong>
+                    <span>Admin account</span>
+                </div>
+            </div>
+        </header>
+        <main class="admin-main">
+            @Body
+        </main>
+        <footer class="admin-footer">
+            <span>StockFlow Inventory Management</span>
+            <span>Administrative Workspace</span>
+        </footer>
+    </div>
+</div>

@@ -1,0 +1,102 @@
+
+@page "/admin/overview"
+@layout StockFlow.Components.Admin.AdminLayout
+@attribute [Authorize(Policy = StockFlowAuthorization.AdminPolicy)]
+@using Microsoft.AspNetCore.Authorization
+@using StockFlow.Components.Services
+<PageTitle>StockFlow | Admin Dashboard</PageTitle>
+<div class="dashboard-page">
+    <section class="dashboard-welcome">
+        <div>
+            <span class="dashboard-eyebrow">OVERVIEW</span>
+            <h2>Welcome to your workspace</h2>
+            <p>Monitor your inventory operations and manage your business from one place.</p>
+        </div>
+        <div class="dashboard-date">
+            <span class="date-indicator"></span>
+            <span>Administrative overview</span>
+        </div>
+    </section>
+    <section class="dashboard-metrics" aria-label="Business overview">
+        <article class="metric-card">
+            <div class="metric-card-top">
+                <span class="metric-label">Total Products</span>
+                <span class="metric-icon products-icon">▤</span>
+            </div>
+            <strong class="metric-value">—</strong>
+            <span class="metric-note">Available after product setup</span>
+        </article>
+        <article class="metric-card">
+            <div class="metric-card-top">
+                <span class="metric-label">Total Customers</span>
+                <span class="metric-icon customers-icon">♙</span>
+            </div>
+            <strong class="metric-value">—</strong>
+            <span class="metric-note">Available after customer setup</span>
+        </article>
+        <article class="metric-card">
+            <div class="metric-card-top">
+                <span class="metric-label">Low Stock Products</span>
+                <span class="metric-icon stock-icon">⚑</span>
+            </div>
+            <strong class="metric-value">—</strong>
+            <span class="metric-note">Requires inventory tracking</span>
+        </article>
+        <article class="metric-card">
+            <div class="metric-card-top">
+                <span class="metric-label">Total Sales</span>
+                <span class="metric-icon sales-icon">▣</span>
+            </div>
+            <strong class="metric-value">—</strong>
+            <span class="metric-note">Available after sales setup</span>
+        </article>
+    </section>
+    <section class="dashboard-main-grid">
+        <article class="dashboard-panel inventory-panel">
+            <div class="panel-heading">
+                <div>
+                    <h3>Inventory Overview</h3>
+                    <p>Keep track of your stock levels.</p>
+                </div>
+                <span class="panel-icon">▥</span>
+            </div>
+            <div class="empty-state">
+                <div class="empty-state-icon">▤</div>
+                <h4>Inventory data is not available yet</h4>
+                <p>Product quantities, stock movements, and inventory summaries will appear here after the inventory module is implemented.</p>
+            </div>
+        </article>
+        <article class="dashboard-panel alerts-panel">
+            <div class="panel-heading">
+                <div>
+                    <h3>Low Stock Alerts</h3>
+                    <p>Products that need restocking.</p>
+                </div>
+                <span class="alert-count">—</span>
+            </div>
+            <div class="empty-state compact-empty-state">
+                <div class="empty-state-icon">⚑</div>
+                <h4>No stock information yet</h4>
+                <p>Low-stock alerts will appear when products and stock thresholds are configured.</p>
+            </div>
+        </article>
+    </section>
+    <section class="dashboard-panel recent-sales-panel">
+        <div class="panel-heading">
+            <div>
+                <h3>Recent Sales</h3>
+                <p>Review the latest transactions.</p>
+            </div>
+            <span class="panel-icon">▣</span>
+        </div>
+        <div class="empty-table-state">
+            <div class="empty-state-icon">▧</div>
+            <h4>Sales activity will appear here</h4>
+            <p>Recent transactions, sales totals, and transaction details will be displayed after the sales module is implemented.</p>
+        </div>
+    </section>
+    <section class="dashboard-footer-note">
+        <span class="footer-note-icon">ⓘ</span>
+        <p><strong>Workspace setup in progress.</strong> Your administrator dashboard is ready. Business statistics and management features will become available as the StockFlow modules are built.</p>
+    </section>
+</div>

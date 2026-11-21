@@ -1,0 +1,513 @@
+
+@page "/admin/products"
+@layout StockFlow.Components.Admin.AdminLayout
+@attribute [Authorize(Policy = StockFlowAuthorization.AdminPolicy)]
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using StockFlow.Components.Services
+@inject ProductService ProductService
+@inject CategoryService CategoryService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>StockFlow | Product Management</PageTitle>
+
+<div class="products-page">
+    <section class="products-welcome">
+        <div>
+            <span class="products-eyebrow">INVENTORY MANAGEMENT</span>
+            <h2>Product Management</h2>
+            <p>Create, organize, and manage the products in your inventory.</p>
+        </div>
+        <button type="button" class="primary-button" @onclick="ShowCreateForm" disabled="@(_activeCategories.Count == 0)">
+            <span>+</span> Add Product
+        </button>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <div class="product-error" role="alert">@_errorMessage</div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_successMessage))
+    {
+        <div class="product-success" role="status">@_successMessage</div>
+    }
+
+    @if (_showForm)
+    {
+        <section class="product-form-panel">
+            <div class="product-form-heading">
+                <div>
+                    <h3>@(_isEditing ? "Edit Product" : "Create New Product")</h3>
+                    <p>@(_isEditing ? "Update the product details. Stock quantity is managed separately." : "Enter the details for the new inventory product.")</p>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(_formError))
+            {
+                <div class="product-error" role="alert">@_formError</div>
+            }
+
+            <EditForm Model="_productInput" OnValidSubmit="SaveProductAsync">
+                <DataAnnotationsValidator />
+                <div class="product-form-grid">
+                    <div class="product-form-field">
+                        <label for="product-sku">SKU <span>*</span></label>
+                        <InputText id="product-sku" class="product-form-input" @bind-Value="_productInput.SKU" placeholder="e.g. ELEC-001" />
+                        <ValidationMessage For="@(() => _productInput.SKU)" />
+                    </div>
+                    <div class="product-form-field">
+                        <label for="product-name">Product Name <span>*</span></label>
+                        <InputText id="product-name" class="product-form-input" @bind-Value="_productInput.Name" placeholder="e.g. Wireless Keyboard" />
+                        <ValidationMessage For="@(() => _productInput.Name)" />
+                    </div>
+                    <div class="product-form-field">
+                        <label for="product-category">Category <span>*</span></label>
+                        <InputSelect id="product-category" class="product-form-input" @bind-Value="_productInput.CategoryId">
+                            <option value="0">Select a category</option>
+                            @foreach (var category in _activeCategories)
+                            {
+                                <option value="@category.Id">@category.Name</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => _productInput.CategoryId)" />
+                    </div>
+                    <div class="product-form-field">
+                        <label for="product-cost">Cost Price <span>*</span></label>
+                        <InputNumber id="product-cost" class="product-form-input" @bind-Value="_productInput.CostPrice" min="0" step="0.01" />
+                        <ValidationMessage For="@(() => _productInput.CostPrice)" />
+                    </div>
+                    <div class="product-form-field">
+                        <label for="product-selling">Selling Price <span>*</span></label>
+                        <InputNumber id="product-selling" class="product-form-input" @bind-Value="_productInput.SellingPrice" min="0" step="0.01" />
+                        <ValidationMessage For="@(() => _productInput.SellingPrice)" />
+                    </div>
+                    <div class="product-form-field">
+                        <label for="product-minimum">Minimum Stock Level <span>*</span></label>
+                        <InputNumber id="product-minimum" class="product-form-input" @bind-Value="_productInput.MinimumStockLevel" min="0" />
+                        <ValidationMessage For="@(() => _productInput.MinimumStockLevel)" />
+                    </div>
+                    @if (!_isEditing)
+                    {
+                        <div class="product-form-field">
+                            <label for="product-quantity">Initial Stock Quantity <span>*</span></label>
+                            <InputNumber id="product-quantity" class="product-form-input" @bind-Value="_productInput.QuantityInStock" min="0" />
+                            <ValidationMessage For="@(() => _productInput.QuantityInStock)" />
+                        </div>
+                    }
+                    <div class="product-form-field product-description-field">
+                        <label for="product-description">Description</label>
+                        <InputTextArea id="product-description" class="product-form-input product-description-input" @bind-Value="_productInput.Description" placeholder="Describe this product..." />
+                        <ValidationMessage For="@(() => _productInput.Description)" />
+                    </div>
+                </div>
+                <div class="product-form-actions">
+                    <button type="button" class="secondary-button" @onclick="CancelForm" disabled="@_isSaving">Cancel</button>
+                    <button type="submit" class="primary-button" disabled="@_isSaving">
+                        @(_isSaving ? "Saving..." : _isEditing ? "Save Changes" : "Save Product")
+                    </button>
+                </div>
+            </EditForm>
+        </section>
+    }
+
+    <section class="product-summary" aria-label="Product summary">
+        <article class="summary-card">
+            <span class="summary-label">Total Products</span>
+            <strong>@_products.Count</strong>
+            <span>All registered products</span>
+        </article>
+        <article class="summary-card">
+            <span class="summary-label">Active Products</span>
+            <strong>@_products.Count(product => product.IsActive)</strong>
+            <span>Available in inventory</span>
+        </article>
+        <article class="summary-card">
+            <span class="summary-label">Low Stock</span>
+            <strong>@_products.Count(product => product.IsActive && product.IsLowStock)</strong>
+            <span>At or below minimum level</span>
+        </article>
+        <article class="summary-card">
+            <span class="summary-label">Inactive Products</span>
+            <strong>@_products.Count(product => !product.IsActive)</strong>
+            <span>Currently unavailable</span>
+        </article>
+    </section>
+
+    <section class="product-panel">
+        <div class="product-panel-heading">
+            <div>
+                <h3>All Products</h3>
+                <p>Search and manage the products registered in your inventory.</p>
+            </div>
+            <div class="product-filter">
+                <label for="product-status">Status</label>
+                <select id="product-status" @bind="_statusFilter" @bind:after="ApplyFilters">
+                    <option value="all">All products</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="product-search">
+            <input type="search" @bind="_searchTerm" @bind:event="oninput" placeholder="Search by product name, SKU, or category..." aria-label="Search products" />
+            <button type="button" class="secondary-button" @onclick="SearchProductsAsync" disabled="@_isLoading">Search</button>
+            <button type="button" class="secondary-button" @onclick="ClearSearchAsync" disabled="@(_isLoading || string.IsNullOrWhiteSpace(_searchTerm))">Clear</button>
+        </div>
+
+        @if (_isLoading)
+        {
+            <div class="product-empty-state">
+                <h4>Loading products...</h4>
+                <p>Please wait while we retrieve your inventory.</p>
+            </div>
+        }
+        else if (_visibleProducts.Count == 0)
+        {
+            <div class="product-empty-state">
+                <div class="empty-product-icon">▦</div>
+                <h4>@(_products.Count == 0 ? "No products have been created" : "No matching products")</h4>
+                <p>@(_products.Count == 0 ? "Products will appear here after you create your first product." : "Try changing your search term or status filter.")</p>
+                @if (_products.Count == 0 && _activeCategories.Count > 0)
+                {
+                    <button type="button" class="secondary-button" @onclick="ShowCreateForm">Create First Product</button>
+                }
+                else if (_activeCategories.Count == 0)
+                {
+                    <p>Create and activate a category before adding products.</p>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="product-table-wrapper">
+                <table class="product-table">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>SKU</th>
+                            <th>Category</th>
+                            <th>Cost Price</th>
+                            <th>Selling Price</th>
+                            <th>Stock</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var product in _visibleProducts)
+                        {
+                            <tr @key="product.Id">
+                                <td>
+                                    <div class="product-name-cell">
+                                        <strong>@product.Name</strong>
+                                        @if (product.IsLowStock && product.IsActive)
+                                        {
+                                            <span class="product-low-stock">Low stock</span>
+                                        }
+                                    </div>
+                                </td>
+                                <td>@product.SKU</td>
+                                <td>@product.CategoryName</td>
+                                <td>@product.CostPrice.ToString("N2")</td>
+                                <td>@product.SellingPrice.ToString("N2")</td>
+                                <td>
+                                    <span class="product-stock-value @(product.IsLowStock && product.IsActive ? "low" : "")">
+                                        @product.QuantityInStock
+                                    </span>
+                                    <span class="product-minimum-stock">Min: @product.MinimumStockLevel</span>
+                                </td>
+                                <td>
+                                    <span class="product-status-badge @(product.IsActive ? "active" : "inactive")">
+                                        @(product.IsActive ? "Active" : "Inactive")
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="product-row-actions">
+                                        <button type="button" class="product-edit-button" @onclick="() => EditProduct(product)">Edit</button>
+                                        <button type="button" class="product-toggle-button @(product.IsActive ? "deactivate" : "activate")" @onclick="() => ToggleProductStatusAsync(product)" disabled="@_isUpdatingStatus">
+                                            @(product.IsActive ? "Deactivate" : "Activate")
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    private List<ProductListItem> _products = [];
+    private List<ProductListItem> _visibleProducts = [];
+    private List<CategoryListItem> _activeCategories = [];
+    private ProductInputModel _productInput = new();
+    private string _statusFilter = "all";
+    private string _searchTerm = string.Empty;
+    private string? _errorMessage;
+    private string? _successMessage;
+    private string? _formError;
+    private bool _showForm;
+    private bool _isEditing;
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private bool _isUpdatingStatus;
+    private int? _editingProductId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await LoadCategoriesAsync();
+            await LoadProductsAsync();
+        }
+        catch (Exception)
+        {
+            _errorMessage = "Unable to load products. Please try again.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoadCategoriesAsync()
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var categories = await CategoryService.ListAsync(authenticationState.User, includeInactive: false);
+        _activeCategories = categories.Where(category => category.IsActive).ToList();
+    }
+
+    private async Task LoadProductsAsync()
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var products = await ProductService.ListAsync(
+            authenticationState.User,
+            _searchTerm,
+            includeInactive: true);
+
+        _products = products.ToList();
+        ApplyFilters();
+    }
+
+    private void ApplyFilters()
+    {
+        var filtered = _products.AsEnumerable();
+
+        filtered = _statusFilter switch
+        {
+            "active" => filtered.Where(product => product.IsActive),
+            "inactive" => filtered.Where(product => !product.IsActive),
+            _ => filtered
+        };
+
+        _visibleProducts = filtered.ToList();
+    }
+
+    private async Task SearchProductsAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            await LoadProductsAsync();
+        }
+        catch (Exception)
+        {
+            _errorMessage = "Unable to search products. Please try again.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task ClearSearchAsync()
+    {
+        _searchTerm = string.Empty;
+        await SearchProductsAsync();
+    }
+
+    private void ShowCreateForm()
+    {
+        if (_activeCategories.Count == 0)
+        {
+            _errorMessage = "Create and activate a category before adding products.";
+            return;
+        }
+
+        _productInput = new()
+        {
+            CategoryId = _activeCategories[0].Id
+        };
+        _editingProductId = null;
+        _isEditing = false;
+        _formError = null;
+        _errorMessage = null;
+        _successMessage = null;
+        _showForm = true;
+    }
+
+    private void EditProduct(ProductListItem product)
+    {
+        _productInput = new()
+        {
+            SKU = product.SKU,
+            Name = product.Name,
+            Description = product.Description,
+            CostPrice = product.CostPrice,
+            SellingPrice = product.SellingPrice,
+            CategoryId = product.CategoryId,
+            MinimumStockLevel = product.MinimumStockLevel,
+            QuantityInStock = product.QuantityInStock
+        };
+
+        _editingProductId = product.Id;
+        _isEditing = true;
+        _formError = null;
+        _errorMessage = null;
+        _successMessage = null;
+        _showForm = true;
+    }
+
+    private void CancelForm()
+    {
+        _showForm = false;
+        _formError = null;
+        _productInput = new();
+        _editingProductId = null;
+        _isEditing = false;
+    }
+
+    private async Task SaveProductAsync()
+    {
+        _isSaving = true;
+        _formError = null;
+        _successMessage = null;
+
+        try
+        {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+
+            var result = _isEditing
+                ? await ProductService.UpdateAsync(
+                    authenticationState.User,
+                    _editingProductId!.Value,
+                    _productInput.SKU,
+                    _productInput.Name,
+                    _productInput.Description,
+                    _productInput.CostPrice,
+                    _productInput.SellingPrice,
+                    _productInput.CategoryId,
+                    _productInput.MinimumStockLevel)
+                : await ProductService.CreateAsync(
+                    authenticationState.User,
+                    _productInput.SKU,
+                    _productInput.Name,
+                    _productInput.Description,
+                    _productInput.CostPrice,
+                    _productInput.SellingPrice,
+                    _productInput.CategoryId,
+                    _productInput.QuantityInStock,
+                    _productInput.MinimumStockLevel);
+
+            if (!result.Succeeded)
+            {
+                _formError = result.Detail;
+                return;
+            }
+
+            var wasEditing = _isEditing;
+            _showForm = false;
+            _productInput = new();
+            _editingProductId = null;
+            _isEditing = false;
+
+            await LoadProductsAsync();
+
+            _successMessage = wasEditing
+                ? "Product updated successfully."
+                : "Product created successfully.";
+        }
+        catch (Exception)
+        {
+            _formError = "An unexpected error occurred while saving the product. Please try again.";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task ToggleProductStatusAsync(ProductListItem product)
+    {
+        _isUpdatingStatus = true;
+        _errorMessage = null;
+        _successMessage = null;
+
+        try
+        {
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var newStatus = !product.IsActive;
+
+            var result = await ProductService.SetActiveAsync(
+                authenticationState.User,
+                product.Id,
+                newStatus);
+
+            if (!result.Succeeded)
+            {
+                _errorMessage = result.Detail;
+                return;
+            }
+
+            await LoadProductsAsync();
+
+            _successMessage = newStatus
+                ? $"'{product.Name}' has been activated successfully."
+                : $"'{product.Name}' has been deactivated successfully.";
+        }
+        catch (Exception)
+        {
+            _errorMessage = "An unexpected error occurred while updating the product status.";
+        }
+        finally
+        {
+            _isUpdatingStatus = false;
+        }
+    }
+
+    private sealed class ProductInputModel
+    {
+        [Required(ErrorMessage = "SKU is required.")]
+        [StringLength(50, ErrorMessage = "SKU cannot exceed 50 characters.")]
+        public string SKU { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Product name is required.")]
+        [StringLength(150, ErrorMessage = "Product name cannot exceed 150 characters.")]
+        public string Name { get; set; } = string.Empty;
+
+        [StringLength(1000, ErrorMessage = "Description cannot exceed 1000 characters.")]
+        public string? Description { get; set; }
+
+        [Range(typeof(decimal), "0", "999999999999999", ErrorMessage = "Cost price cannot be negative.")]
+        public decimal CostPrice { get; set; }
+
+        [Range(typeof(decimal), "0", "999999999999999", ErrorMessage = "Selling price cannot be negative.")]
+        public decimal SellingPrice { get; set; }
+
+        [Range(1, int.MaxValue, ErrorMessage = "Please select a category.")]
+        public int CategoryId { get; set; }
+
+        [Range(0, int.MaxValue, ErrorMessage = "Initial stock cannot be negative.")]
+        public int QuantityInStock { get; set; }
+
+        [Range(0, int.MaxValue, ErrorMessage = "Minimum stock level cannot be negative.")]
+        public int MinimumStockLevel { get; set; }
+    }
+}

@@ -694,3 +694,49 @@ button {
         align-items: flex-start;
     }
 }
+:root {
+    --color-primary: var(--navy);
+    --color-light-green: #E7F1EB;
+    --color-background: var(--bg);
+    --color-surface: var(--panel);
+}
+a {
+    color: var(--color-primary);
+}
+a:hover {
+    color: var(--primary);
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 3px;
+}
+.content {
+    padding-top: 1.1rem;
+}
+h1:focus {
+    outline: none;
+}
+.valid.modified:not([type=checkbox]) {
+    outline: 1px solid #26b050;
+}
+.invalid {
+    outline: 1px solid #e50000;
+}
+.validation-message {
+    color: #e50000;
+}
+.blazor-error-boundary {
+    background-color: #b32121;
+    padding: 1rem 1rem 1rem 3.7rem;
+    color: var(--color-surface);
+}
+.blazor-error-boundary::after {
+    content: "An error has occurred.";
+}
+.error-text {
+    color: var(--color-primary);
+}

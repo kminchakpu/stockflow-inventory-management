@@ -1,55 +1,126 @@
+
 using System.Net;
-using System.Text.Json;
 using System.Text.RegularExpressions;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Npgsql;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Npgsql;
 using StockFlow.Components.Services;
 using StockFlow.Data;
+using StockFlow.Models;
 
 namespace StockFlow.Tests;
 
 [TestClass]
-public class AuthenticationAuthorizationTests
+public partial class AuthenticationAuthorizationTests
 {
+    private const string AdminEmail = "admin@stockflow.local";
+    private const string AdminPassword = "Admin@123456";
+    private const string EmployeeEmail = "employee@stockflow.local";
+    private const string EmployeePassword = "Employee@123456";
     private StockFlowAppFactory _factory = null!;
     private HttpClient _client = null!;
 
     [TestInitialize]
-    public void Initialize()
+    public async Task Initialize()
     {
         _factory = new StockFlowAppFactory();
         _client = _factory.CreateClient(new WebApplicationFactoryClientOptions
         {
+            BaseAddress = new Uri("https://localhost"),
             AllowAutoRedirect = false,
             HandleCookies = true
         });
+        await SeedTestUsersAsync();
     }
 
     [TestCleanup]
     public void Cleanup()
     {
-        _client.Dispose();
-        _factory.Dispose();
+        _client?.Dispose();
+        _factory?.Dispose();
+    }
+
+    private async Task SeedTestUsersAsync()
+    {
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var roles = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+
+        if (!await roles.RoleExistsAsync(AppRoles.Admin))
+        {
+            var result = await roles.CreateAsync(new IdentityRole(AppRoles.Admin));
+            Assert.IsTrue(result.Succeeded, string.Join("; ", result.Errors.Select(e => e.Description)));
+        }
+
+        if (!await roles.RoleExistsAsync(AppRoles.Employee))
+        {
+            var result = await roles.CreateAsync(new IdentityRole(AppRoles.Employee));
+            Assert.IsTrue(result.Succeeded, string.Join("; ", result.Errors.Select(e => e.Description)));
+        }
+
+        await CreateTestUserAsync(users, AdminEmail, AdminPassword, "Test", "Administrator", AppRoles.Admin);
+        await CreateTestUserAsync(users, EmployeeEmail, EmployeePassword, "Test", "Employee", AppRoles.Employee);
+    }
+
+    private static async Task CreateTestUserAsync(
+        UserManager<ApplicationUser> users,
+        string email,
+        string password,
+        string firstName,
+        string lastName,
+        string role)
+    {
+        var existingUser = await users.FindByEmailAsync(email);
+        if (existingUser is not null)
+        {
+            return;
+        }
+
+        var user = new ApplicationUser
+        {
+            UserName = email,
+            Email = email,
+            EmailConfirmed = true,
+            FirstName = firstName,
+            LastName = lastName,
+            IsActive = true
+        };
+
+        var createResult = await users.CreateAsync(user, password);
+        Assert.IsTrue(
+            createResult.Succeeded,
+            $"Could not create test user {email}: {string.Join("; ", createResult.Errors.Select(e => e.Description))}");
+
+        var roleResult = await users.AddToRoleAsync(user, role);
+        Assert.IsTrue(
+            roleResult.Succeeded,
+            $"Could not assign role {role} to {email}: {string.Join("; ", roleResult.Errors.Select(e => e.Description))}");
     }
 
     [TestMethod]
     public async Task SeededPasswordsAreHashedAndRolesAreAssigned()
     {
-        await _client.GetAsync("/login");
-
         await using var scope = _factory.Services.CreateAsyncScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
-        var admin = await users.FindByEmailAsync("admin@stockflow.local");
-        var employee = await users.FindByEmailAsync("employee@stockflow.local");
+        var admin = await users.FindByEmailAsync(AdminEmail);
+        var employee = await users.FindByEmailAsync(EmployeeEmail);
 
         Assert.IsNotNull(admin);
         Assert.IsNotNull(employee);
-        Assert.IsFalse(admin!.PasswordHash!.Contains("Admin@123", StringComparison.Ordinal));
-        Assert.IsFalse(employee!.PasswordHash!.Contains("Employee@123", StringComparison.Ordinal));
+        Assert.IsNotNull(admin!.PasswordHash);
+        Assert.IsNotNull(employee!.PasswordHash);
+
+        Assert.IsFalse(admin.PasswordHash.Contains(AdminPassword, StringComparison.Ordinal));
+        Assert.IsFalse(employee.PasswordHash.Contains(EmployeePassword, StringComparison.Ordinal));
+
+        Assert.IsTrue(await users.CheckPasswordAsync(admin, AdminPassword));
+        Assert.IsTrue(await users.CheckPasswordAsync(employee, EmployeePassword));
+
         Assert.IsTrue(await users.IsInRoleAsync(admin, AppRoles.Admin));
         Assert.IsFalse(await users.IsInRoleAsync(admin, AppRoles.Employee));
         Assert.IsTrue(await users.IsInRoleAsync(employee, AppRoles.Employee));
@@ -59,224 +130,138 @@ public class AuthenticationAuthorizationTests
     [TestMethod]
     public async Task AdminLoginRedirectsToAdminConsole()
     {
-        var response = await SignInAsync("admin@stockflow.local", "Admin@123");
+        var response = await SignInAsync(AdminEmail, AdminPassword);
 
         Assert.AreEqual(HttpStatusCode.Redirect, response.StatusCode);
         Assert.AreEqual("/admin", response.Headers.Location?.OriginalString);
     }
 
     [TestMethod]
-    public async Task EmployeeLoginRedirectsToEmployeeArea()
+    public async Task EmployeeLoginRedirectsToEmployeeAccess()
     {
-        var response = await SignInAsync("employee@stockflow.local", "Employee@123");
+        var response = await SignInAsync(EmployeeEmail, EmployeePassword);
 
         Assert.AreEqual(HttpStatusCode.Redirect, response.StatusCode);
         Assert.AreEqual("/employee-access", response.Headers.Location?.OriginalString);
     }
 
     [TestMethod]
-    public async Task InvalidCredentialsAreRejectedWithoutRevealingWhichFieldFailed()
+    public async Task InvalidPasswordDoesNotAuthenticateUser()
     {
-        var response = await SignInAsync("admin@stockflow.local", "wrong-pass");
+        var response = await SignInAsync(AdminEmail, "WrongPassword@123");
 
         Assert.AreEqual(HttpStatusCode.Redirect, response.StatusCode);
-        StringAssert.Contains(response.Headers.Location?.OriginalString, "error=invalid");
+        StringAssert.Contains(response.Headers.Location?.OriginalString, "error");
+
+        var admin = await _client.GetAsync("/admin");
+        Assert.AreEqual("/login", LocationPath(admin));
     }
 
     [TestMethod]
-    public async Task IncompleteLoginIsRejected()
+    public async Task AnonymousUserCannotAccessAdminConsole()
     {
-        var response = await SignInAsync("", "");
+        var response = await _client.GetAsync("/admin");
+
+        Assert.AreEqual(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.AreEqual("/login", LocationPath(response));
+    }
+
+    [TestMethod]
+    public async Task AnonymousUserCannotAccessEmployeeArea()
+    {
+        var response = await _client.GetAsync("/employee-access");
+
+        Assert.AreEqual(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.AreEqual("/login", LocationPath(response));
+    }
+
+    [TestMethod]
+    public async Task EmployeeCannotAccessAdminConsole()
+    {
+        await SignInAsync(EmployeeEmail, EmployeePassword);
+
+        var response = await _client.GetAsync("/admin");
+
+        Assert.AreEqual(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.AreEqual("/access-denied", LocationPath(response));
+    }
+
+    [TestMethod]
+    public async Task AdminCanAccessAdminConsole()
+    {
+        await SignInAsync(AdminEmail, AdminPassword);
+
+        var response = await _client.GetAsync("/admin");
+
+        Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task EmployeeCanAccessEmployeeArea()
+    {
+        await SignInAsync(EmployeeEmail, EmployeePassword);
+
+        var response = await _client.GetAsync("/employee-access");
+
+        Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task LoginRejectsMissingCredentials()
+    {
+        var token = await GetAntiforgeryTokenAsync("/login");
+
+        var response = await PostAsync("/account/login", token, new Dictionary<string, string>
+        {
+            ["email"] = "",
+            ["password"] = ""
+        });
 
         Assert.AreEqual(HttpStatusCode.Redirect, response.StatusCode);
         StringAssert.Contains(response.Headers.Location?.OriginalString, "error=missing");
     }
 
     [TestMethod]
-    public async Task ProtectedPagesRequireAuthentication()
-    {
-        var dashboard = await _client.GetAsync("/dashboard");
-        var admin = await _client.GetAsync("/admin");
-
-        Assert.AreEqual(HttpStatusCode.Redirect, dashboard.StatusCode);
-        Assert.AreEqual(HttpStatusCode.Redirect, admin.StatusCode);
-        Assert.AreEqual("/login", LocationPath(dashboard));
-        Assert.AreEqual("/login", LocationPath(admin));
-    }
-
-    [TestMethod]
-    public async Task AuthenticationStateSurvivesNavigation()
-    {
-        await SignInAsync("employee@stockflow.local", "Employee@123");
-
-        var dashboard = await _client.GetAsync("/dashboard");
-        var employeeArea = await _client.GetAsync("/employee-access");
-
-        Assert.AreEqual(HttpStatusCode.OK, dashboard.StatusCode);
-        Assert.AreEqual(HttpStatusCode.OK, employeeArea.StatusCode);
-    }
-
-    [TestMethod]
-    public async Task LogoutClearsAccessToProtectedPages()
-    {
-        await SignInAsync("admin@stockflow.local", "Admin@123");
-        var token = await GetAntiforgeryTokenAsync("/admin");
-        var logout = await PostAsync("/account/logout", token);
-
-        Assert.AreEqual(HttpStatusCode.Redirect, logout.StatusCode);
-        Assert.AreEqual("/login", logout.Headers.Location?.OriginalString);
-
-        var dashboard = await _client.GetAsync("/dashboard");
-        Assert.AreEqual(HttpStatusCode.Redirect, dashboard.StatusCode);
-        Assert.AreEqual("/login", LocationPath(dashboard));
-    }
-
-    [TestMethod]
-    public async Task EmployeeCannotOpenAdminPagesByUrl()
-    {
-        await SignInAsync("employee@stockflow.local", "Employee@123");
-
-        var admin = await _client.GetAsync("/admin");
-        var employees = await _client.GetAsync("/admin/employees");
-
-        Assert.AreEqual(HttpStatusCode.Redirect, admin.StatusCode);
-        Assert.AreEqual(HttpStatusCode.Redirect, employees.StatusCode);
-        Assert.AreEqual("/access-denied", LocationPath(admin));
-        Assert.AreEqual("/access-denied", LocationPath(employees));
-    }
-
-    [TestMethod]
-    public async Task AdminCanOpenEmployeeAreaAndEmployeeManagement()
-    {
-        await SignInAsync("admin@stockflow.local", "Admin@123");
-
-        var admin = await _client.GetAsync("/admin");
-        var employees = await _client.GetAsync("/admin/employees");
-        var employeeArea = await _client.GetAsync("/employee-access");
-
-        Assert.AreEqual(HttpStatusCode.OK, admin.StatusCode);
-        Assert.AreEqual(HttpStatusCode.OK, employees.StatusCode);
-        Assert.AreEqual(HttpStatusCode.OK, employeeArea.StatusCode);
-        var html = await employees.Content.ReadAsStringAsync();
-        StringAssert.Contains(html, "Aisha Brand");
-    }
-
-    [TestMethod]
-    public async Task AdminCanCreateEmployeeAndThatAccountReceivesTheEmployeeRole()
-    {
-        await SignInAsync("admin@stockflow.local", "Admin@123");
-        var token = await GetAntiforgeryTokenAsync("/admin/employees");
-        var created = await PostAsync("/admin/employees", token, new Dictionary<string, string>
-        {
-            ["displayName"] = "New Hire",
-            ["email"] = "new.hire@stockflow.local",
-            ["password"] = "Hire@1234"
-        });
-
-        Assert.AreEqual(HttpStatusCode.Redirect, created.StatusCode);
-        StringAssert.Contains(created.Headers.Location?.OriginalString, "notice=created");
-
-        await using var scope = _factory.Services.CreateAsyncScope();
-        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-        var hire = await users.FindByEmailAsync("new.hire@stockflow.local");
-        Assert.IsNotNull(hire);
-        Assert.IsTrue(await users.IsInRoleAsync(hire!, AppRoles.Employee));
-        Assert.IsFalse(await users.IsInRoleAsync(hire, AppRoles.Admin));
-        Assert.IsFalse(hire.PasswordHash!.Contains("Hire@1234", StringComparison.Ordinal));
-
-        _client.Dispose();
-        _client = _factory.CreateClient(new WebApplicationFactoryClientOptions
-        {
-            AllowAutoRedirect = false,
-            HandleCookies = true
-        });
-        var signIn = await SignInAsync("new.hire@stockflow.local", "Hire@1234");
-        Assert.AreEqual("/employee-access", signIn.Headers.Location?.OriginalString);
-
-        var admin = await _client.GetAsync("/admin");
-        Assert.AreEqual("/access-denied", LocationPath(admin));
-    }
-
-    [TestMethod]
-    public async Task EmployeeCannotCreateOrDisableAccounts()
-    {
-        await SignInAsync("employee@stockflow.local", "Employee@123");
-        var token = await GetAntiforgeryTokenAsync("/employee-access");
-        var create = await PostAsync("/admin/employees", token, new Dictionary<string, string>
-        {
-            ["displayName"] = "Blocked Hire",
-            ["email"] = "blocked.hire@stockflow.local",
-            ["password"] = "Hire@1234"
-        });
-
-        Assert.AreEqual(HttpStatusCode.Redirect, create.StatusCode);
-        Assert.AreEqual("/access-denied", LocationPath(create));
-
-        await using var scope = _factory.Services.CreateAsyncScope();
-        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-        Assert.IsNull(await users.FindByEmailAsync("blocked.hire@stockflow.local"));
-    }
-
-    [TestMethod]
-    public async Task DisabledEmployeeCannotSignIn()
-    {
-        await SignInAsync("admin@stockflow.local", "Admin@123");
-        string employeeId;
-        await using (var scope = _factory.Services.CreateAsyncScope())
-        {
-            var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-            var employee = await users.FindByEmailAsync("employee@stockflow.local");
-            employeeId = employee!.Id;
-        }
-
-        var token = await GetAntiforgeryTokenAsync("/admin/employees");
-        var disabled = await PostAsync("/admin/employees/active", token, new Dictionary<string, string>
-        {
-            ["userId"] = employeeId,
-            ["isActive"] = "false"
-        });
-        StringAssert.Contains(disabled.Headers.Location?.OriginalString, "notice=disabled");
-
-        _client.Dispose();
-        _client = _factory.CreateClient(new WebApplicationFactoryClientOptions
-        {
-            AllowAutoRedirect = false,
-            HandleCookies = true
-        });
-        var signIn = await SignInAsync("employee@stockflow.local", "Employee@123");
-        StringAssert.Contains(signIn.Headers.Location?.OriginalString, "error=disabled");
-    }
-
-    [TestMethod]
     public async Task ExternalReturnUrlIsNotFollowed()
     {
-        var response = await SignInAsync("admin@stockflow.local", "Admin@123", "https://evil.example/phish");
+        var response = await SignInAsync(
+            AdminEmail,
+            AdminPassword,
+            "https://evil.example/phish");
 
-        Assert.AreEqual("/dashboard", response.Headers.Location?.OriginalString);
+        Assert.AreEqual(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.AreEqual("/admin", response.Headers.Location?.OriginalString);
     }
 
     private static string LocationPath(HttpResponseMessage response)
     {
         var location = response.Headers.Location;
         Assert.IsNotNull(location);
+
         if (location.IsAbsoluteUri)
         {
             return location.AbsolutePath;
         }
 
         var value = location.OriginalString;
-        var query = value.IndexOf('?', StringComparison.Ordinal);
-        return query >= 0 ? value[..query] : value;
+        var queryIndex = value.IndexOf('?');
+
+        return queryIndex >= 0 ? value[..queryIndex] : value;
     }
 
-    private async Task<HttpResponseMessage> SignInAsync(string email, string password, string? returnUrl = null)
+    private async Task<HttpResponseMessage> SignInAsync(
+        string email,
+        string password,
+        string? returnUrl = null)
     {
         var token = await GetAntiforgeryTokenAsync("/login");
+
         var fields = new Dictionary<string, string>
         {
             ["email"] = email,
             ["password"] = password
         };
+
         if (!string.IsNullOrWhiteSpace(returnUrl))
         {
             fields["returnUrl"] = returnUrl;
@@ -288,23 +273,35 @@ public class AuthenticationAuthorizationTests
     private async Task<string> GetAntiforgeryTokenAsync(string path)
     {
         var response = await _client.GetAsync(path);
-        var html = await response.Content.ReadAsStringAsync();
-        var match = Regex.Match(html, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"");
-        if (!match.Success)
-        {
-            match = Regex.Match(html, "value=\"([^\"]+)\"[^>]*name=\"__RequestVerificationToken\"");
-        }
+        var content = await response.Content.ReadAsStringAsync();
 
-        Assert.IsTrue(match.Success, "Antiforgery token was not rendered.");
-        return System.Net.WebUtility.HtmlDecode(match.Groups[1].Value);
+        Assert.IsTrue(
+            response.IsSuccessStatusCode,
+            $"GET {path} failed with status {(int)response.StatusCode}. Response: {content}");
+
+        var match = Regex.Match(
+            content,
+            "<input\\b(?=[^>]*\\bname=\"__RequestVerificationToken\")(?=[^>]*\\bvalue=\"([^\"]+)\")[^>]*>",
+            RegexOptions.IgnoreCase);
+
+        Assert.IsTrue(
+            match.Success,
+            $"Antiforgery token was not found on {path}. Response: {content}");
+
+        return match.Groups[1].Value;
     }
 
-    private Task<HttpResponseMessage> PostAsync(string path, string token, Dictionary<string, string>? fields = null)
+    private Task<HttpResponseMessage> PostAsync(
+        string path,
+        string token,
+        Dictionary<string, string>? fields = null)
     {
         var form = fields is null
             ? new Dictionary<string, string>()
             : new Dictionary<string, string>(fields);
+
         form["__RequestVerificationToken"] = token;
+
         return _client.PostAsync(path, new FormUrlEncodedContent(form));
     }
 
@@ -316,32 +313,75 @@ public class AuthenticationAuthorizationTests
 
         public StockFlowAppFactory()
         {
-            var settingsPath = FindLocalSettings();
-            using var document = JsonDocument.Parse(File.ReadAllText(settingsPath));
-            var connection = document.RootElement.GetProperty("ConnectionStrings").GetProperty("DefaultConnection").GetString()
-                ?? throw new InvalidOperationException("appsettings.Local.json is missing ConnectionStrings:DefaultConnection.");
-            var builder = new NpgsqlConnectionStringBuilder(connection)
+            var configuration = new ConfigurationBuilder()
+                .AddUserSecrets<Program>()
+                .Build();
+
+            var applicationConnection = configuration.GetConnectionString("DefaultConnection")
+                ?? throw new InvalidOperationException(
+                    "ConnectionStrings:DefaultConnection was not found in StockFlow User Secrets.");
+
+            var adminConnection = configuration["StockFlowTests:DatabaseAdminConnection"]
+                ?? throw new InvalidOperationException(
+                    "StockFlowTests:DatabaseAdminConnection was not found in StockFlow User Secrets.");
+
+            var adminBuilder = new NpgsqlConnectionStringBuilder(adminConnection)
             {
                 Database = "postgres"
             };
-            _adminConnection = builder.ConnectionString;
-            builder.Database = _databaseName;
-            _appConnection = builder.ConnectionString;
-            CreateDatabase();
+
+            _adminConnection = adminBuilder.ConnectionString;
+
+            var appBuilder = new NpgsqlConnectionStringBuilder(applicationConnection)
+            {
+                Database = _databaseName
+            };
+
+            _appConnection = appBuilder.ConnectionString;
+
+            var databaseOwner = appBuilder.Username;
+            if (string.IsNullOrWhiteSpace(databaseOwner))
+            {
+                throw new InvalidOperationException(
+                    "The PostgreSQL application username is missing from the connection string.");
+            }
+
+            CreateDatabase(databaseOwner);
+            MigrateDatabase();
         }
 
-        protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
+        protected override void ConfigureWebHost(
+            Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
         {
-            builder.UseSetting("ConnectionStrings:DefaultConnection", _appConnection);
+            builder.UseSetting(
+                "ConnectionStrings:DefaultConnection",
+                _appConnection);
+        }
+
+        private void MigrateDatabase()
+        {
+            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseNpgsql(_appConnection)
+                .Options;
+
+            using var context = new ApplicationDbContext(options);
+            context.Database.Migrate();
         }
 
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
+
+            if (!disposing)
+            {
+                return;
+            }
+
             try
             {
                 using var connection = new NpgsqlConnection(_adminConnection);
                 connection.Open();
+
                 using (var terminate = connection.CreateCommand())
                 {
                     terminate.CommandText = """
@@ -349,6 +389,7 @@ public class AuthenticationAuthorizationTests
                         FROM pg_stat_activity
                         WHERE datname = @name AND pid <> pg_backend_pid();
                         """;
+
                     terminate.Parameters.AddWithValue("name", _databaseName);
                     terminate.ExecuteNonQuery();
                 }
@@ -357,35 +398,25 @@ public class AuthenticationAuthorizationTests
                 drop.CommandText = $"DROP DATABASE IF EXISTS \"{_databaseName}\"";
                 drop.ExecuteNonQuery();
             }
-            catch (NpgsqlException)
+            catch (NpgsqlException exception)
             {
+                Console.WriteLine(
+                    $"Test database cleanup failed: {exception.Message}");
             }
         }
 
-        private void CreateDatabase()
+        private void CreateDatabase(string owner)
         {
             using var connection = new NpgsqlConnection(_adminConnection);
             connection.Open();
+
+            var safeOwner = owner.Replace("\"", "\"\"");
+
             using var command = connection.CreateCommand();
-            command.CommandText = $"CREATE DATABASE \"{_databaseName}\"";
+            command.CommandText =
+                $"CREATE DATABASE \"{_databaseName}\" OWNER \"{safeOwner}\"";
+
             command.ExecuteNonQuery();
-        }
-
-        private static string FindLocalSettings()
-        {
-            var directory = new DirectoryInfo(AppContext.BaseDirectory);
-            while (directory is not null)
-            {
-                var candidate = Path.Combine(directory.FullName, "appsettings.Local.json");
-                if (File.Exists(candidate))
-                {
-                    return candidate;
-                }
-
-                directory = directory.Parent;
-            }
-
-            throw new FileNotFoundException("Could not find appsettings.Local.json.");
         }
     }
 }

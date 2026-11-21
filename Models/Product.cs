@@ -1,29 +1,19 @@
-using System.ComponentModel.DataAnnotations;
 
 namespace StockFlow.Models;
 
 public class Product
 {
-    public int ProductId { get; set; }
-
-    [Required]
-    [StringLength(100)]
+    public int Id { get; set; }
+    public string SKU { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
-
-    [Required]
-    [StringLength(50)]
-    public string Sku { get; set; } = string.Empty;
-
-    [StringLength(500)]
     public string? Description { get; set; }
-
-    [Range(typeof(decimal), "0.01", "999999999999.99")]
-    public decimal UnitPrice { get; set; }
-
-    [Range(0, int.MaxValue)]
-    public int StockQuantity { get; set; }
-
+    public decimal CostPrice { get; set; }
+    public decimal SellingPrice { get; set; }
+    public int CategoryId { get; set; }
+    public Category Category { get; set; } = null!;
+    public int QuantityInStock { get; set; }
+    public int MinimumStockLevel { get; set; }
+    public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
     public DateTime? UpdatedAt { get; set; }
 }
