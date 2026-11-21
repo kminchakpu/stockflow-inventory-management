@@ -1,0 +1,63 @@
+
+@using Microsoft.AspNetCore.Components.Authorization
+
+<div class="nav-shell">
+    <div class="nav-identity">
+        <div class="brand-badge">SF</div>
+        <div>
+            <span>StockFlow</span>
+            <small>Operations</small>
+        </div>
+    </div>
+
+    <nav class="nav-stack">
+        <NavLink href="/dashboard" class="nav-item" Match="NavLinkMatch.All">
+            <span>Overview</span>
+        </NavLink>
+
+        <AuthorizeView Roles="@AppRoles.Admin">
+            <Authorized>
+                <NavLink href="/admin" class="nav-item" Match="NavLinkMatch.All">
+                    <span>Admin</span>
+                </NavLink>
+                <NavLink href="/admin/employees" class="nav-item" Match="NavLinkMatch.All">
+                    <span>Employees</span>
+                </NavLink>
+                <NavLink href="/admin/customers" class="nav-item">
+                    <span>Customers</span>
+                </NavLink>
+                <NavLink href="/admin/products" class="nav-item">
+                    <span>Products</span>
+                </NavLink>
+            </Authorized>
+        </AuthorizeView>
+
+        <AuthorizeView Roles="@($"{AppRoles.Admin},{AppRoles.Employee}")">
+            <Authorized>
+                <NavLink href="/employee-access" class="nav-item">
+                    <span>Employee access</span>
+                </NavLink>
+            </Authorized>
+        </AuthorizeView>
+
+        <NavLink href="/dashboard" class="nav-item">
+            <span>Inventory</span>
+        </NavLink>
+        <NavLink href="/dashboard" class="nav-item">
+            <span>Sales</span>
+        </NavLink>
+        <NavLink href="/dashboard" class="nav-item">
+            <span>Reports</span>
+        </NavLink>
+    </nav>
+
+    <div class="nav-footer">
+        <AuthorizeView>
+            <Authorized>
+                <span class="nav-user-label">Signed in as</span>
+                <strong>@context.User.Identity?.Name</strong>
+                <small>@context.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value</small>
+            </Authorized>
+        </AuthorizeView>
+    </div>
+</div>

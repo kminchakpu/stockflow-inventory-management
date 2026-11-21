@@ -7,8 +7,16 @@
 
 # StockFlow – Inventory and Sales Management System
 ## Project Overview
-StockFlow is a web-based Inventory and Sales Management System designed for small retail businesses.
-The application provides a centralized platform for managing products, product categories, inventory, customers, employees, and sales transactions.
+StockFlow is a web-based inventory and sales management system designed for small retail operations.
+The application provides a centralized platform for managing products, inventory, customers, employees, and sales activities in a streamlined operational workflow.
+
+## Current Status
+The project is on track and the core authentication flow is in place. The app currently includes:
+- a branded login experience
+- session-based authentication with role-aware claims
+- admin and employee role enforcement
+- protected admin and employee access screens
+- a redirect flow for authenticated and unauthenticated users
 
 ## Project Objectives
 - Develop a functional .NET Blazor web application.
@@ -23,71 +31,84 @@ The application provides a centralized platform for managing products, product c
 
 ## Technology Stack
 - C#
-- .NET
+- .NET 10
 - ASP.NET Core
-- Blazor
-- Entity Framework Core
-- ASP.NET Core Identity
-- SQL Database
+- Blazor Server
+- ASP.NET Core authorization and authentication
 - HTML and CSS
-- Bootstrap (or equivalent)
+- Bootstrap
 - Git and GitHub
 - Trello
 
 ## Main Features
 - User authentication and authorization
 - Admin and Employee dashboards
-- Product management
-- Category management
-- Inventory management
-- Customer management
-- Employee management
-- Sales processing
-- Automatic inventory updates
-- Sales history
-- Low-stock monitoring
-- Basic reporting
+- Role-based access control
+- Inventory overview
+- Sales activity summaries
+- Customer and operations panels
+- Responsive dashboard layout
+- Secure session-based sign in and sign out
 
 ## User Roles
-1. Admin: Manages products, categories, inventory, employees, customers, sales, and reports.
-2. Employee: Views products and inventory, manages customer information, and processes sales.
+1. Admin: Full access to administration and operational controls.
+2. Employee: Access to employee-facing operations within the permitted workflow.
+
+## Demo Test Credentials
+Use these credentials for testing the app during development:
+
+| Role | Email | Password |
+| --- | --- | --- |
+| Admin | admin@stockflow.local | Admin@123 |
+| Employee | employee@stockflow.local | Employee@123 |
 
 ## Project Documentation
-Additional documentation, installation instructions, and user guides will be maintained in this repository.
+Additional documentation, installation steps, and user guides will be maintained in this repository as the application expands.
 
 ## Team Collaboration
-1. GitHub will be used for source-code management, branches, commits, and pull requests.
-2. Trello will be used to organize development tasks and monitor project progress.
+1. GitHub is used for source-code management, branches, commits, and pull requests.
+2. Trello is used to organize development tasks and monitor project progress.
 
 ## Project Status
-In Development – CSE 325 Group Project.
+In progress – authentication and role-based access have been implemented and are aligned with the current app design.
 
 ## Rules for team collaboration
-## Before anyone starts coding, remember these rules:
-## Activity	                    Team rule
-==========================================
-1. Starting work	                : Pull the latest develop branch
-2. New feature	                  : Create a feature branch
-3. Saving changes	                : Commit regularly
-4. Commit messages	              : Describe the actual change
-5. Submitting work	              : Create a Pull Request
-6. Code review	                  : Another member reviews the changes
-7. Merging	                      : Merge approved work into develop
-8. Final release	                : Merge tested code into main
+### Before anyone starts coding, remember these rules:
+
+| Activity | Team rule |
+| --- | --- |
+| Starting work | Pull the latest branch before editing |
+| New feature | Create a feature branch |
+| Saving changes | Commit regularly |
+| Commit messages | Describe the actual change |
+| Submitting work | Create a Pull Request |
+| Code review | Another member reviews the changes |
+| Merging | Merge approved work into the main branch |
+| Final release | Merge tested code into main |
 
 ## Example Git commands:
 
-## Get the latest changes
-git pull origin develop
+### Get the latest changes
+```bash
+git pull origin main
+```
 
-## Create a feature branch
+### Create a feature branch
+```bash
 git checkout -b feature/products
+```
 
-## Stage your changes
+### Stage your changes
+```bash
 git add .
+```
 
-## Commit your changes
+### Commit your changes
+```bash
 git commit -m "Add product management functionality"
+```
 
-## Push your branch
+### Push your branch
+```bash
 git push -u origin feature/products
+```
