@@ -1,3 +1,4 @@
+
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using StockFlow.Components;
@@ -53,6 +54,12 @@ builder.Services.AddScoped<CustomerService>();
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 var app = builder.Build();
+if (app.Environment.IsEnvironment("Testing"))
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await db.Database.MigrateAsync();
+}
 await IdentitySeeder.SeedRolesAsync(app.Services);
 await AdminAccountSeeder.SeedAsync(app.Services, app.Configuration);
 if (!app.Environment.IsDevelopment())
